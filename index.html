@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gem Arcade</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="Gem Arcade">
+        <span class="brand-mark">G</span>
+        <span>Gem Arcade</span>
+      </a>
+      <nav class="nav">
+        <a href="#games">ゲーム</a>
+        <a href="#scoreboard">ランキング</a>
+        <a href="#studio">ヒント</a>
+      </nav>
+      <div class="player-panel" id="playerPanel">
+        <button class="ghost-button" id="changePlayerButton" type="button">なまえ登録</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="home">
+        <div class="hero-copy">
+          <p class="eyebrow">昔ながらのFlashゲームみたいに、すぐ遊べる。</p>
+          <h1>スコアを競って、<br />GEMを集める<br />ミニゲーム広場</h1>
+          <p>
+            白くてポップなRoblox風サイトに、Scratchでも作れそうなルールのゲームを並べました。
+            名前を登録して遊ぶと、スコアとGEMがこのブラウザに保存されます。
+          </p>
+          <div class="hero-actions">
+            <button class="primary-button" id="heroNameButton" type="button">なまえを登録</button>
+            <a class="secondary-button" href="#games">ゲームで遊ぶ</a>
+          </div>
+        </div>
+        <div class="hero-stage" aria-hidden="true">
+          <div class="floating-card card-blue">+25 GEM</div>
+          <div class="avatar-block face"></div>
+          <div class="avatar-block hat"></div>
+          <div class="hero-gem gem-a"></div>
+          <div class="hero-gem gem-b"></div>
+          <div class="hero-gem gem-c"></div>
+        </div>
+      </section>
+
+      <section class="section-band profile-band" id="profile">
+        <div class="profile-summary">
+          <div>
+            <p class="label">プレイヤー</p>
+            <strong id="activePlayerName">未登録</strong>
+          </div>
+          <div>
+            <p class="label">GEM</p>
+            <strong id="gemBalance">0</strong>
+          </div>
+          <div>
+            <p class="label">今日のベスト</p>
+            <strong id="todayBest">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" id="games">
+        <div class="section-heading">
+          <p class="eyebrow">Play</p>
+          <h2>ミニゲーム</h2>
+          <p>YouTubeの動画一覧のように、遊びたいゲームをカードから選べます。</p>
+        </div>
+
+        <div class="library-toolbar" aria-label="ゲーム一覧の表示設定">
+          <div class="segmented-control" aria-label="表示切替">
+            <button class="is-active" type="button" data-view="list">リスト</button>
+            <button type="button" data-view="grid">2列</button>
+          </div>
+          <label class="select-control">
+            並び替え
+            <select id="sortSelect">
+              <option value="recommended">おすすめ順</option>
+              <option value="favorite">お気に入り優先</option>
+              <option value="score">ランキング順</option>
+              <option value="new">新しい順</option>
+              <option value="name">名前順</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="game-card-grid" id="gameCardGrid" aria-label="ゲーム一覧"></div>
+      </section>
+
+      <section class="content-section game-page is-hidden" id="play">
+        <a class="back-link" href="#games">← ゲーム一覧にもどる</a>
+        <div class="game-page-heading">
+          <div>
+            <p class="label" id="gameGenre">反射神経ゲーム</p>
+            <h2 id="gameTitle">Gem Pop</h2>
+            <p id="gameHint">落ちてくるGEMをクリックして集めよう。金色は高得点です。</p>
+          </div>
+          <div class="game-stats">
+            <span>Score <strong id="scoreValue">0</strong></span>
+            <span>Time <strong id="timeValue">30</strong></span>
+            <span>GEM <strong id="roundGemValue">0</strong></span>
+          </div>
+        </div>
+
+        <section class="game-shell">
+          <div class="game-viewport" id="gameViewport">
+            <div class="game-frame">
+              <canvas id="gameCanvas" width="1280" height="720" aria-label="ゲーム画面"></canvas>
+            </div>
+          </div>
+
+          <div class="game-controls">
+            <button class="primary-button" id="startButton" type="button">スタート</button>
+            <button class="secondary-button" id="resetButton" type="button">リセット</button>
+            <button class="secondary-button" id="fullscreenButton" type="button">全画面表示</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="content-section" id="scoreboard">
+        <div class="section-heading">
+          <p class="eyebrow">Scoreboard</p>
+          <h2>ランキング</h2>
+          <p>このデモでは同じブラウザ内に保存します。友達と本当に共有する場合は、下のメモの方法がおすすめです。</p>
+        </div>
+        <div class="score-grid">
+          <article class="score-card">
+            <div class="card-title-row">
+              <h3>Gem Pop</h3>
+              <span class="mini-badge">30秒</span>
+            </div>
+            <ol class="rank-list" id="gemPopRanks"></ol>
+          </article>
+          <article class="score-card">
+            <div class="card-title-row">
+              <h3>Code Runner</h3>
+              <span class="mini-badge">45秒</span>
+            </div>
+            <ol class="rank-list" id="codeRunnerRanks"></ol>
+          </article>
+          <article class="score-card">
+            <div class="card-title-row">
+              <h3>Passcode Crack</h3>
+              <span class="mini-badge">90秒</span>
+            </div>
+            <ol class="rank-list" id="passcodeRanks"></ol>
+          </article>
+          <article class="score-card">
+            <div class="card-title-row">
+              <h3>Cryptogram Lite</h3>
+              <span class="mini-badge">80秒</span>
+            </div>
+            <ol class="rank-list" id="cryptogramRanks"></ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section studio-section" id="studio">
+        <div class="section-heading">
+          <p class="eyebrow">Studio</p>
+          <h2>「僕も作れそう」と思える設計</h2>
+          <p>ゲームの仕組みは、Scratchのブロックに置き換えやすいものだけにしています。</p>
+        </div>
+        <div class="studio-grid">
+          <article>
+            <h3>Gem Pop</h3>
+            <p>ランダムな場所にGEMを出す、下へ動かす、クリックされたら点数を増やす、時間で終わる。</p>
+          </article>
+          <article>
+            <h3>Code Runner</h3>
+            <p>キャラを左右に動かす、落ちてくるブロックを取る、バグに当たると減点する。</p>
+          </article>
+          <article>
+            <h3>Passcode Crack</h3>
+            <p>4桁の数字を作る、入力を比べる、数字だけ正解と位置正解を数える。</p>
+          </article>
+          <article>
+            <h3>Cryptogram Lite</h3>
+            <p>同じ暗号記号を探す、見えている文字から穴の答えを推理する。</p>
+          </article>
+          <article>
+            <h3>GEMの条件</h3>
+            <p>初回クリア、自己ベスト更新、高スコア、毎日プレイに分けると、課金っぽくなく健全に続けやすい。</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="name-dialog" id="nameDialog">
+      <form method="dialog" id="nameForm">
+        <h2>プレイヤー登録</h2>
+        <p>ランキングに出す名前を入れてください。あとから変更できます。</p>
+        <label>
+          なまえ
+          <input id="playerNameInput" maxlength="14" autocomplete="nickname" placeholder="例: sora" required />
+        </label>
+        <div class="dialog-actions">
+          <button class="secondary-button" value="cancel" type="button" id="cancelNameButton">あとで</button>
+          <button class="primary-button" value="default" type="submit">登録</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
