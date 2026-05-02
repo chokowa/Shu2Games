@@ -20,7 +20,7 @@ const games = {
     order: 2,
     releasedAt: "2026-05-01",
     duration: 45,
-    hint: "左右キーかA/Dで動いて、青いコードブロックを集めよう。赤いバグはよけてください。",
+    hint: "左右キーかA/D、タッチボタンで動いて、青いコードブロックを集めよう。赤いバグはよけてください。",
     boardId: "codeRunnerRanks",
   },
   "passcode-crack": {
@@ -77,6 +77,9 @@ const fullscreenGemValue = document.querySelector("#fullscreenGemValue");
 const startButton = document.querySelector("#startButton");
 const resetButton = document.querySelector("#resetButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
+const touchControls = document.querySelector("#touchControls");
+const moveLeftButton = document.querySelector("#moveLeftButton");
+const moveRightButton = document.querySelector("#moveRightButton");
 const gameTitle = document.querySelector("#gameTitle");
 const gameGenre = document.querySelector("#gameGenre");
 const gameHint = document.querySelector("#gameHint");
@@ -122,6 +125,7 @@ let keys = new Set();
 let spawnTimer = 0;
 let nextSpawn = 0.7;
 let animationId = 0;
+let touchMove = { left: false, right: false };
 let previewAvatarItem = "cap";
 let passcode = {
   secret: "",
@@ -675,10 +679,12 @@ function renderGameCards() {
     card.dataset.openGame = gameId;
     card.innerHTML = `
       <div class="game-thumb ${game.thumbClass}" aria-hidden="true"></div>
-      <div>
-        <p class="label">${escapeHtml(game.genre)}</p>
-        <h3>${escapeHtml(game.title)}</h3>
-        <p>${escapeHtml(game.description)}</p>
+      <div class="game-card-body">
+        <div class="game-card-heading">
+          <p class="label">${escapeHtml(game.genre)}</p>
+          <h3>${escapeHtml(game.title)}</h3>
+          <p>${escapeHtml(game.description)}</p>
+        </div>
         <div class="game-meta-row">
           <span class="top-player">1位 ${escapeHtml(leader)}</span>
           <button class="favorite-button ${isFavorite ? "is-favorite" : ""}" type="button" data-favorite="${gameId}" aria-pressed="${isFavorite}">
@@ -751,6 +757,7 @@ function switchGame(gameId) {
   activeGameId = gameId;
   const game = games[gameId];
   gameViewport.dataset.game = gameId;
+  gameShell.dataset.game = gameId;
   configureCanvasSize();
   gameTitle.textContent = game.title;
   gameGenre.textContent = game.genre;
@@ -760,8 +767,16 @@ function switchGame(gameId) {
   roundGems = 0;
   startButton.textContent = "スタート";
   startButton.disabled = false;
+  updateTouchControls();
   updateHud();
   drawIdle();
+}
+
+function updateTouchControls() {
+  const showTouchControls =
+    activeGameId === "code-runner" &&
+    window.matchMedia("(pointer: coarse)").matches;
+  touchControls.classList.toggle("is-hidden", !showTouchControls);
 }
 
 function route() {
@@ -926,8 +941,8 @@ function spawnGem() {
 }
 
 function updateCodeRunner(dt) {
-  if (keys.has("ArrowLeft") || keys.has("a")) player.x -= player.speed * dt;
-  if (keys.has("ArrowRight") || keys.has("d")) player.x += player.speed * dt;
+  if (keys.has("ArrowLeft") || keys.has("a") || touchMove.left) player.x -= player.speed * dt;
+  if (keys.has("ArrowRight") || keys.has("d") || touchMove.right) player.x += player.speed * dt;
   player.x = Math.max(12, Math.min(canvas.width - player.w - 12, player.x));
 
   spawnTimer -= dt;
@@ -950,6 +965,10 @@ function updateCodeRunner(dt) {
 
   entities = entities.filter((item) => item.y < canvas.height + 50 && !item.hit);
   drawCodeRunner();
+}
+
+function setTouchMove(direction, isPressed) {
+  touchMove[direction] = isPressed;
 }
 
 function spawnBlock() {
@@ -2042,6 +2061,11 @@ window.addEventListener("keyup", (event) => {
   keys.delete(event.key.toLowerCase());
 });
 
+window.addEventListener("pointerup", () => {
+  touchMove.left = false;
+  touchMove.right = false;
+});
+
 startButton.addEventListener("click", startGame);
 resetButton.addEventListener("click", () => switchGame(activeGameId));
 fullscreenButton.addEventListener("click", async () => {
@@ -2070,6 +2094,24 @@ buyAvatarItemButton.addEventListener("click", buyPreviewAvatarItem);
 avatarItemList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-avatar-preview]");
   if (button) previewAvatar(button.dataset.avatarPreview);
+});
+
+[
+  [moveLeftButton, "left"],
+  [moveRightButton, "right"],
+].forEach(([button, direction]) => {
+  const press = (event) => {
+    event.preventDefault();
+    setTouchMove(direction, true);
+  };
+  const release = (event) => {
+    event.preventDefault();
+    setTouchMove(direction, false);
+  };
+  button.addEventListener("pointerdown", press);
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("pointerleave", release);
 });
 
 sortSelect.addEventListener("change", () => {
@@ -2119,6 +2161,7 @@ document.addEventListener("fullscreenchange", () => {
 
 window.addEventListener("resize", () => {
   configureCanvasSize();
+  updateTouchControls();
   redrawActiveGame();
 });
 
@@ -2128,4 +2171,5 @@ updateProfile();
 renderScoreboards();
 renderGameCards();
 switchGame(activeGameId);
+updateTouchControls();
 route();
