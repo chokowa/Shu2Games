@@ -15,7 +15,6 @@
       <nav class="nav">
         <a href="#games">ゲーム</a>
         <a href="#scoreboard">ランキング</a>
-        <a href="#studio">ヒント</a>
       </nav>
       <div class="player-panel" id="playerPanel">
         <button class="ghost-button" id="changePlayerButton" type="button">なまえ登録</button>
@@ -25,24 +24,29 @@
     <main>
       <section class="hero" id="home">
         <div class="hero-copy">
-          <p class="eyebrow">昔ながらのFlashゲームみたいに、すぐ遊べる。</p>
+          <p class="eyebrow">すぐ遊べて、何度も挑戦できる。</p>
           <h1>スコアを競って、<br />GEMを集める<br />ミニゲーム広場</h1>
           <p>
-            白くてポップなRoblox風サイトに、Scratchでも作れそうなルールのゲームを並べました。
-            名前を登録して遊ぶと、スコアとGEMがこのブラウザに保存されます。
+            かんたんなルールで遊べるミニゲームを集めました。
+            名前を登録すると、スコアとGEMをこの端末に保存できます。
           </p>
           <div class="hero-actions">
             <button class="primary-button" id="heroNameButton" type="button">なまえを登録</button>
             <a class="secondary-button" href="#games">ゲームで遊ぶ</a>
           </div>
         </div>
-        <div class="hero-stage" aria-hidden="true">
+        <div class="hero-stage" id="avatarStage">
           <div class="floating-card card-blue">+25 GEM</div>
-          <div class="avatar-block face"></div>
-          <div class="avatar-block hat"></div>
+          <div class="avatar-character hero-avatar" aria-label="アバター">
+            <div class="avatar-block hat"></div>
+            <div class="avatar-block face"></div>
+            <div class="avatar-crown"></div>
+            <div class="avatar-cape"></div>
+          </div>
           <div class="hero-gem gem-a"></div>
           <div class="hero-gem gem-b"></div>
           <div class="hero-gem gem-c"></div>
+          <button class="avatar-shop-button" id="openAvatarShopButton" type="button">アバターショップ</button>
         </div>
       </section>
 
@@ -67,7 +71,7 @@
         <div class="section-heading">
           <p class="eyebrow">Play</p>
           <h2>ミニゲーム</h2>
-          <p>YouTubeの動画一覧のように、遊びたいゲームをカードから選べます。</p>
+          <p>気になるゲームをカードから選んで、すぐに遊べます。</p>
         </div>
 
         <div class="library-toolbar" aria-label="ゲーム一覧の表示設定">
@@ -105,7 +109,12 @@
           </div>
         </div>
 
-        <section class="game-shell">
+        <section class="game-shell" id="gameShell">
+          <div class="fullscreen-hud" aria-label="全画面ステータス">
+            <span>Score <strong id="fullscreenScoreValue">0</strong></span>
+            <span>Time <strong id="fullscreenTimeValue">30</strong></span>
+            <span>GEM <strong id="fullscreenGemValue">0</strong></span>
+          </div>
           <div class="game-viewport" id="gameViewport">
             <div class="game-frame">
               <canvas id="gameCanvas" width="1280" height="720" aria-label="ゲーム画面"></canvas>
@@ -124,7 +133,7 @@
         <div class="section-heading">
           <p class="eyebrow">Scoreboard</p>
           <h2>ランキング</h2>
-          <p>このデモでは同じブラウザ内に保存します。友達と本当に共有する場合は、下のメモの方法がおすすめです。</p>
+          <p>ランキングはこの端末に保存されます。友達と同じ端末で遊ぶと、スコアを比べられます。</p>
         </div>
         <div class="score-grid">
           <article class="score-card">
@@ -151,18 +160,18 @@
           <article class="score-card">
             <div class="card-title-row">
               <h3>Cryptogram Lite</h3>
-              <span class="mini-badge">80秒</span>
+              <span class="mini-badge">60秒</span>
             </div>
             <ol class="rank-list" id="cryptogramRanks"></ol>
           </article>
         </div>
       </section>
 
-      <section class="content-section studio-section" id="studio">
+      <section class="content-section studio-section is-hidden" id="studio">
         <div class="section-heading">
           <p class="eyebrow">Studio</p>
           <h2>「僕も作れそう」と思える設計</h2>
-          <p>ゲームの仕組みは、Scratchのブロックに置き換えやすいものだけにしています。</p>
+          <p>遊んだあとに、ゲームの仕組みを考えるヒントをまとめました。</p>
         </div>
         <div class="studio-grid">
           <article>
@@ -183,7 +192,7 @@
           </article>
           <article>
             <h3>GEMの条件</h3>
-            <p>初回クリア、自己ベスト更新、高スコア、毎日プレイに分けると、課金っぽくなく健全に続けやすい。</p>
+            <p>高スコアや自己ベスト更新でGEMをもらえると、次の挑戦がもっと楽しくなります。</p>
           </article>
         </div>
       </section>
@@ -200,6 +209,34 @@
         <div class="dialog-actions">
           <button class="secondary-button" value="cancel" type="button" id="cancelNameButton">あとで</button>
           <button class="primary-button" value="default" type="submit">登録</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="avatar-dialog" id="avatarDialog">
+      <form method="dialog">
+        <div class="avatar-dialog-head">
+          <div>
+            <p class="label">Avatar Shop</p>
+            <h2>アバターショップ</h2>
+          </div>
+          <strong><span id="avatarShopGemValue">0</span> GEM</strong>
+        </div>
+        <div class="avatar-dialog-body">
+          <div class="avatar-preview-panel" id="avatarPreviewStage">
+            <div class="avatar-character avatar-preview" aria-label="試着中のアバター">
+              <div class="avatar-block hat"></div>
+              <div class="avatar-block face"></div>
+              <div class="avatar-crown"></div>
+              <div class="avatar-cape"></div>
+            </div>
+            <p id="avatarPreviewStatus">選ぶとここで試着できます</p>
+          </div>
+          <div class="avatar-item-list" id="avatarItemList"></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="secondary-button" value="cancel" type="button" id="closeAvatarShopButton">閉じる</button>
+          <button class="primary-button" type="button" id="buyAvatarItemButton">購入して着る</button>
         </div>
       </form>
     </dialog>

@@ -4,7 +4,7 @@ const games = {
   "gem-pop": {
     title: "Gem Pop",
     genre: "反射神経ゲーム",
-    description: "落ちてくるGEMをクリックしてスコアを伸ばす、Flash時代っぽいシンプル反射ゲーム。",
+    description: "落ちてくるGEMをクリックしてスコアを伸ばす、シンプルな反射ゲーム。",
     thumbClass: "thumb-gem-pop",
     order: 1,
     releasedAt: "2026-05-01",
@@ -37,7 +37,7 @@ const games = {
   cryptogram: {
     title: "Cryptogram Lite",
     genre: "ことば・暗号パズル",
-    description: "文字の上にある暗号記号を手がかりに、ひらがなや英語の短文を解読します。",
+    description: "暗号記号を手がかりに、ひらがなや英語の短い文を解読します。",
     thumbClass: "thumb-cryptogram",
     order: 4,
     releasedAt: "2026-05-02",
@@ -60,6 +60,10 @@ const defaultState = {
   favorites: [],
   libraryView: "list",
   sortMode: "recommended",
+  avatar: {
+    owned: ["cap"],
+    equipped: "cap",
+  },
 };
 
 const canvas = document.querySelector("#gameCanvas");
@@ -67,6 +71,9 @@ const ctx = canvas.getContext("2d");
 const scoreValue = document.querySelector("#scoreValue");
 const timeValue = document.querySelector("#timeValue");
 const roundGemValue = document.querySelector("#roundGemValue");
+const fullscreenScoreValue = document.querySelector("#fullscreenScoreValue");
+const fullscreenTimeValue = document.querySelector("#fullscreenTimeValue");
+const fullscreenGemValue = document.querySelector("#fullscreenGemValue");
 const startButton = document.querySelector("#startButton");
 const resetButton = document.querySelector("#resetButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
@@ -78,10 +85,11 @@ const sortSelect = document.querySelector("#sortSelect");
 const viewButtons = document.querySelectorAll("[data-view]");
 const playSection = document.querySelector("#play");
 const gamesSection = document.querySelector("#games");
-const landingSections = ["#home", "#profile", "#games", "#scoreboard", "#studio"].map((selector) =>
+const landingSections = ["#home", "#profile", "#games", "#scoreboard"].map((selector) =>
   document.querySelector(selector),
 );
 const gameViewport = document.querySelector("#gameViewport");
+const gameShell = document.querySelector("#gameShell");
 const nameDialog = document.querySelector("#nameDialog");
 const nameForm = document.querySelector("#nameForm");
 const playerNameInput = document.querySelector("#playerNameInput");
@@ -91,6 +99,15 @@ const cancelNameButton = document.querySelector("#cancelNameButton");
 const activePlayerName = document.querySelector("#activePlayerName");
 const gemBalance = document.querySelector("#gemBalance");
 const todayBest = document.querySelector("#todayBest");
+const avatarStage = document.querySelector("#avatarStage");
+const openAvatarShopButton = document.querySelector("#openAvatarShopButton");
+const avatarDialog = document.querySelector("#avatarDialog");
+const closeAvatarShopButton = document.querySelector("#closeAvatarShopButton");
+const avatarPreviewStage = document.querySelector("#avatarPreviewStage");
+const avatarPreviewStatus = document.querySelector("#avatarPreviewStatus");
+const avatarItemList = document.querySelector("#avatarItemList");
+const avatarShopGemValue = document.querySelector("#avatarShopGemValue");
+const buyAvatarItemButton = document.querySelector("#buyAvatarItemButton");
 
 let state = loadState();
 let activeGameId = "gem-pop";
@@ -105,6 +122,7 @@ let keys = new Set();
 let spawnTimer = 0;
 let nextSpawn = 0.7;
 let animationId = 0;
+let previewAvatarItem = "cap";
 let passcode = {
   secret: "",
   input: "",
@@ -503,10 +521,15 @@ function loadState() {
       ...parsed,
       scores: { ...defaultState.scores, ...(parsed?.scores || {}) },
       bestByDay: { ...defaultState.bestByDay, ...(parsed?.bestByDay || {}) },
-      favorites: parsed?.favorites || defaultState.favorites,
-      libraryView: parsed?.libraryView || defaultState.libraryView,
-      sortMode: parsed?.sortMode || defaultState.sortMode,
-    };
+    favorites: parsed?.favorites || defaultState.favorites,
+    libraryView: parsed?.libraryView || defaultState.libraryView,
+    sortMode: parsed?.sortMode || defaultState.sortMode,
+    avatar: {
+      ...defaultState.avatar,
+      ...(parsed?.avatar || {}),
+      owned: parsed?.avatar?.owned || defaultState.avatar.owned,
+    },
+  };
   } catch {
     return structuredClone(defaultState);
   }
@@ -528,6 +551,88 @@ function updateProfile() {
     ...Object.keys(games).map((gameId) => state.bestByDay[`${day}:${gameId}`] || 0),
   ).toLocaleString("ja-JP");
   changePlayerButton.textContent = state.playerName ? `${state.playerName} / 変更` : "なまえ登録";
+  renderAvatarShop();
+}
+
+const avatarItems = {
+  cap: { label: "キャップ", price: 0, note: "はじめから使える基本装備" },
+  cape: { label: "マント", price: 30, note: "元気に見えるピンクのマント" },
+  crown: { label: "クラウン", price: 80, note: "たくさん遊んだ人のきらきら王冠" },
+};
+
+function renderAvatarShop() {
+  if (!avatarStage) return;
+  avatarStage.dataset.outfit = state.avatar.equipped;
+}
+
+function openAvatarShop() {
+  if (!state.playerName) {
+    openNameDialog();
+    return;
+  }
+  previewAvatarItem = state.avatar.equipped;
+  renderAvatarDialog();
+  avatarDialog.showModal();
+}
+
+function renderAvatarDialog() {
+  if (!avatarDialog) return;
+  avatarPreviewStage.dataset.outfit = previewAvatarItem;
+  avatarShopGemValue.textContent = state.gems.toLocaleString("ja-JP");
+  avatarItemList.innerHTML = "";
+
+  Object.entries(avatarItems).forEach(([itemId, item]) => {
+    const owned = state.avatar.owned.includes(itemId);
+    const equipped = state.avatar.equipped === itemId;
+    const selected = previewAvatarItem === itemId;
+    const button = document.createElement("button");
+    button.className = `avatar-item-card ${selected ? "is-selected" : ""}`;
+    button.type = "button";
+    button.dataset.avatarPreview = itemId;
+    button.innerHTML = `
+      <span>
+        <strong>${escapeHtml(item.label)}</strong>
+        <span>${escapeHtml(item.note)}</span>
+      </span>
+      <span class="avatar-item-state">${equipped ? "装備中" : owned ? "持っている" : `${item.price} GEM`}</span>
+    `;
+    avatarItemList.append(button);
+  });
+
+  const item = avatarItems[previewAvatarItem];
+  const owned = state.avatar.owned.includes(previewAvatarItem);
+  const equipped = state.avatar.equipped === previewAvatarItem;
+  avatarPreviewStatus.textContent = owned
+    ? equipped
+      ? `${item.label}を装備中です`
+      : `${item.label}に着替えました`
+    : `${item.label}を試着中です`;
+  buyAvatarItemButton.classList.toggle("is-hidden", owned);
+  buyAvatarItemButton.disabled = owned || state.gems < item.price;
+  buyAvatarItemButton.textContent = state.gems < item.price ? "GEMが足りません" : `${item.price} GEMで購入して着る`;
+}
+
+function previewAvatar(itemId) {
+  const item = avatarItems[itemId];
+  if (!item) return;
+  previewAvatarItem = itemId;
+  if (state.avatar.owned.includes(itemId)) {
+    state.avatar.equipped = itemId;
+    saveState();
+    updateProfile();
+  }
+  renderAvatarDialog();
+}
+
+function buyPreviewAvatarItem() {
+  const item = avatarItems[previewAvatarItem];
+  if (!item || state.avatar.owned.includes(previewAvatarItem) || state.gems < item.price) return;
+  state.gems -= item.price;
+  state.avatar.owned.push(previewAvatarItem);
+  state.avatar.equipped = previewAvatarItem;
+  saveState();
+  updateProfile();
+  renderAvatarDialog();
 }
 
 function renderScoreboards() {
@@ -681,6 +786,9 @@ function updateHud() {
   scoreValue.textContent = score.toLocaleString("ja-JP");
   timeValue.textContent = Math.max(0, Math.ceil(timeLeft));
   roundGemValue.textContent = roundGems;
+  fullscreenScoreValue.textContent = score.toLocaleString("ja-JP");
+  fullscreenTimeValue.textContent = Math.max(0, Math.ceil(timeLeft));
+  fullscreenGemValue.textContent = roundGems;
 }
 
 function startGame() {
@@ -1822,6 +1930,23 @@ function drawResult(earned) {
   }
 }
 
+function redrawActiveGame() {
+  if (activeGameId === "passcode-crack") {
+    drawPasscodeCrack();
+    return;
+  }
+  if (activeGameId === "cryptogram") {
+    drawCryptogram();
+    return;
+  }
+  if (!isRunning) {
+    drawIdle();
+    return;
+  }
+  if (activeGameId === "gem-pop") drawGemPop();
+  if (activeGameId === "code-runner") drawCodeRunner();
+}
+
 canvas.addEventListener("click", (event) => {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
@@ -1921,7 +2046,7 @@ startButton.addEventListener("click", startGame);
 resetButton.addEventListener("click", () => switchGame(activeGameId));
 fullscreenButton.addEventListener("click", async () => {
   if (!document.fullscreenElement) {
-    await gameViewport.requestFullscreen();
+    await gameShell.requestFullscreen();
     fullscreenButton.textContent = "全画面を終了";
   } else {
     await document.exitFullscreen();
@@ -1937,6 +2062,14 @@ viewButtons.forEach((button) => {
     saveState();
     renderGameCards();
   });
+});
+
+openAvatarShopButton.addEventListener("click", openAvatarShop);
+closeAvatarShopButton.addEventListener("click", () => avatarDialog.close());
+buyAvatarItemButton.addEventListener("click", buyPreviewAvatarItem);
+avatarItemList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-avatar-preview]");
+  if (button) previewAvatar(button.dataset.avatarPreview);
 });
 
 sortSelect.addEventListener("change", () => {
@@ -1981,12 +2114,12 @@ nameForm.addEventListener("submit", (event) => {
 document.addEventListener("fullscreenchange", () => {
   configureCanvasSize();
   fullscreenButton.textContent = document.fullscreenElement ? "全画面を終了" : "全画面表示";
-  if (activeGameId === "passcode-crack") drawPasscodeCrack();
+  redrawActiveGame();
 });
 
 window.addEventListener("resize", () => {
   configureCanvasSize();
-  if (activeGameId === "passcode-crack") drawPasscodeCrack();
+  redrawActiveGame();
 });
 
 window.addEventListener("hashchange", route);
