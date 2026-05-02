@@ -77,6 +77,7 @@ const fullscreenGemValue = document.querySelector("#fullscreenGemValue");
 const startButton = document.querySelector("#startButton");
 const resetButton = document.querySelector("#resetButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
+const fullscreenPreviewButton = document.querySelector("#fullscreenPreviewButton");
 const touchControls = document.querySelector("#touchControls");
 const moveLeftButton = document.querySelector("#moveLeftButton");
 const moveRightButton = document.querySelector("#moveRightButton");
@@ -495,15 +496,39 @@ const cryptogramTranslations = {
   "we count small blocks": "わたしたちは小さいブロックを数えます。",
 };
 
+function isFullscreenPreview() {
+  return gameShell.classList.contains("is-fullscreen-preview");
+}
+
+function isFullscreenActive() {
+  return Boolean(document.fullscreenElement) || isFullscreenPreview();
+}
+
+function syncFullscreenButtons() {
+  fullscreenButton.textContent = document.fullscreenElement ? "全画面を終了" : "全画面表示";
+  fullscreenPreviewButton.textContent = isFullscreenPreview() ? "確認を終了" : "PCで確認";
+  fullscreenPreviewButton.disabled = Boolean(document.fullscreenElement);
+}
+
+function setFullscreenPreview(enabled) {
+  gameShell.classList.toggle("is-fullscreen-preview", enabled);
+  document.body.classList.toggle("has-fullscreen-preview", enabled);
+  touchMove.left = false;
+  touchMove.right = false;
+  configureCanvasSize();
+  syncFullscreenButtons();
+  redrawActiveGame();
+}
+
 function isPasscodeCompact() {
-  return activeGameId === "passcode-crack" && window.matchMedia("(max-width: 620px)").matches && !document.fullscreenElement;
+  return activeGameId === "passcode-crack" && window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
 }
 
 function isCompactPuzzleGame() {
   return (
     (activeGameId === "passcode-crack" || activeGameId === "cryptogram") &&
     window.matchMedia("(max-width: 620px)").matches &&
-    !document.fullscreenElement
+    !isFullscreenActive()
   );
 }
 
@@ -751,7 +776,12 @@ function openNameDialog() {
   playerNameInput.focus();
 }
 
+function toggleFullscreenPreview() {
+  setFullscreenPreview(!isFullscreenPreview());
+}
+
 function switchGame(gameId) {
+  setFullscreenPreview(false);
   if (isRunning) endGame();
   if (!games[gameId]) gameId = "gem-pop";
   activeGameId = gameId;
@@ -780,6 +810,9 @@ function updateTouchControls() {
 }
 
 function route() {
+  if (!location.hash.startsWith("#play/")) {
+    setFullscreenPreview(false);
+  }
   const match = location.hash.match(/^#play\/(.+)$/);
   if (match) {
     switchGame(match[1]);
@@ -1331,16 +1364,17 @@ function drawCodeRunner() {
 
 function drawCryptogram() {
   configureCanvasSize();
-  const compact = window.matchMedia("(max-width: 620px)").matches && !document.fullscreenElement;
+  const compact = window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
+  const fullscreen = isFullscreenActive();
   const puzzle = cryptogram.puzzle;
   const shell = getCryptogramShell(compact);
   const problemBox = getCryptogramProblemBox(compact);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#edf5ff";
+  ctx.fillStyle = fullscreen ? "#172033" : "#edf5ff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#172033";
-  roundRect(shell.x, shell.y, shell.w, shell.h, 24);
+  roundRect(shell.x, shell.y, shell.w, shell.h, fullscreen ? 0 : 24);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
   roundRect(problemBox.x, problemBox.y, problemBox.w, problemBox.h, 18);
@@ -1378,18 +1412,24 @@ function drawCryptogram() {
   drawCryptogramText(compact);
 
   ctx.fillStyle = "#a9b8d6";
-  ctx.font = compact ? "800 18px system-ui" : "800 22px system-ui";
-  ctx.fillText(cryptogram.message, canvas.width / 2, compact ? 486 : 420);
+  ctx.font = fullscreen ? "800 16px system-ui" : compact ? "800 18px system-ui" : "800 22px system-ui";
+  ctx.fillText(cryptogram.message, canvas.width / 2, fullscreen ? 402 : compact ? 486 : 420);
   drawCryptogramKeyboard(compact);
 }
 
 function getCryptogramShell(compact = false) {
+  if (isFullscreenActive()) {
+    return { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  }
   return compact
     ? { x: 54, y: 36, w: canvas.width - 108, h: 884 }
     : { x: 54, y: 48, w: canvas.width - 108, h: 624 };
 }
 
 function getCryptogramProblemBox(compact = false) {
+  if (isFullscreenActive()) {
+    return { x: 34, y: 26, w: canvas.width - 68, h: 292 };
+  }
   return compact
     ? { x: 86, y: 68, w: canvas.width - 172, h: 390 }
     : { x: 86, y: 82, w: canvas.width - 172, h: 310 };
@@ -1584,11 +1624,12 @@ function getCryptogramKeys(compact = false) {
 }
 
 function getEnglishKeyboardKeys(compact = false) {
+  const fullscreen = isFullscreenActive();
   const rows = compact ? ["qwertyuiop", "asdfghjkl", "zxcvbnm", "←"] : ["qwertyuiop", "asdfghjkl", "zxcvbnm←"];
-  const keyW = compact ? 56 : 88;
-  const keyH = compact ? 48 : 50;
-  const gap = compact ? 8 : 12;
-  const startY = compact ? 520 : 440;
+  const keyW = fullscreen ? 72 : compact ? 56 : 88;
+  const keyH = fullscreen ? 42 : compact ? 48 : 50;
+  const gap = fullscreen ? 10 : compact ? 8 : 12;
+  const startY = fullscreen ? 456 : compact ? 520 : 440;
 
   return rows.flatMap((row, rowIndex) => {
     const chars = [...row];
@@ -1606,12 +1647,13 @@ function getEnglishKeyboardKeys(compact = false) {
 }
 
 function getHiraganaKeyboardKeys(compact = false) {
+  const fullscreen = isFullscreenActive();
   const columns = ["あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの", "はひふへほ", "まみむめも", "やゆよ", "らりるれろ", "わをん"];
-  const keyW = compact ? 48 : 58;
-  const keyH = compact ? 40 : 44;
-  const gap = compact ? 7 : 9;
-  const columnGap = compact ? 7 : 9;
-  const startY = compact ? 520 : 420;
+  const keyW = fullscreen ? 48 : compact ? 48 : 58;
+  const keyH = fullscreen ? 34 : compact ? 40 : 44;
+  const gap = fullscreen ? 7 : compact ? 7 : 9;
+  const columnGap = fullscreen ? 7 : compact ? 7 : 9;
+  const startY = fullscreen ? 432 : compact ? 520 : 420;
   const totalWidth = columns.length * keyW + (columns.length - 1) * columnGap;
   const left = (canvas.width - totalWidth) / 2;
 
@@ -1642,13 +1684,14 @@ function getHiraganaKeyboardKeys(compact = false) {
 }
 
 function drawCryptogramKeyboard(compact = false) {
+  const fullscreen = isFullscreenActive();
   getCryptogramKeys(compact).forEach((key) => {
     const isDelete = key.value === "backspace";
     ctx.fillStyle = isDelete ? "#2f80ff" : "#f6f8ff";
     roundRect(key.x, key.y, key.w, key.h, 10);
     ctx.fill();
     ctx.fillStyle = isDelete ? "#fff" : "#172033";
-    ctx.font = compact ? "900 19px system-ui" : "900 22px system-ui";
+    ctx.font = fullscreen ? "900 18px system-ui" : compact ? "900 19px system-ui" : "900 22px system-ui";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(key.label, key.x + key.w / 2, key.y + key.h / 2 + 1);
@@ -1972,7 +2015,7 @@ canvas.addEventListener("click", (event) => {
   const scaleY = canvas.height / rect.height;
   const x = (event.clientX - rect.left) * scaleX;
   const y = (event.clientY - rect.top) * scaleY;
-  const compact = window.matchMedia("(max-width: 620px)").matches && !document.fullscreenElement;
+  const compact = window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
 
   if (activeGameId === "cryptogram" && !cryptogram.puzzle) {
     if (cryptogram.awaitingNext) {
@@ -2038,6 +2081,10 @@ canvas.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isFullscreenPreview()) {
+    toggleFullscreenPreview();
+    return;
+  }
   if (activeGameId === "passcode-crack" && isRunning) {
     if (/^\d$/.test(event.key)) {
       handlePasscodeKey(event.key);
@@ -2071,10 +2118,12 @@ resetButton.addEventListener("click", () => switchGame(activeGameId));
 fullscreenButton.addEventListener("click", async () => {
   if (!document.fullscreenElement) {
     await gameShell.requestFullscreen();
-    fullscreenButton.textContent = "全画面を終了";
   } else {
     await document.exitFullscreen();
   }
+});
+fullscreenPreviewButton.addEventListener("click", () => {
+  if (!document.fullscreenElement) toggleFullscreenPreview();
 });
 changePlayerButton.addEventListener("click", openNameDialog);
 heroNameButton.addEventListener("click", openNameDialog);
@@ -2155,7 +2204,7 @@ nameForm.addEventListener("submit", (event) => {
 
 document.addEventListener("fullscreenchange", () => {
   configureCanvasSize();
-  fullscreenButton.textContent = document.fullscreenElement ? "全画面を終了" : "全画面表示";
+  syncFullscreenButtons();
   redrawActiveGame();
 });
 
@@ -2172,4 +2221,5 @@ renderScoreboards();
 renderGameCards();
 switchGame(activeGameId);
 updateTouchControls();
+syncFullscreenButtons();
 route();

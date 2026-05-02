@@ -33,6 +33,10 @@ body {
   color: var(--ink);
 }
 
+body.has-fullscreen-preview {
+  overflow: hidden;
+}
+
 button,
 input {
   font: inherit;
@@ -63,6 +67,19 @@ a {
   gap: 10px;
   font-weight: 900;
   letter-spacing: 0;
+}
+
+.brand-version {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--blue-dark);
+  font-size: 0.74rem;
+  font-weight: 900;
 }
 
 .brand-mark {
@@ -754,6 +771,10 @@ h3 {
   margin-top: 14px;
 }
 
+.game-shell:not([data-game="code-runner"]) .touch-controls {
+  display: none !important;
+}
+
 .touch-move-button {
   min-width: 108px;
   min-height: 52px;
@@ -814,12 +835,16 @@ h3 {
   background: #dff0ff;
 }
 
-.game-shell:fullscreen {
-  position: relative;
+.game-shell:fullscreen,
+.game-shell.is-fullscreen-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
   display: block;
   width: 100vw;
   height: 100vh;
   padding: 0;
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: #000;
@@ -827,25 +852,28 @@ h3 {
   overflow: hidden;
 }
 
-.game-shell:fullscreen .fullscreen-hud {
+.game-shell:fullscreen .fullscreen-hud,
+.game-shell.is-fullscreen-preview .fullscreen-hud {
   display: flex;
   position: absolute;
   z-index: 3;
   gap: 8px;
 }
 
-.game-shell:fullscreen .fullscreen-hud span {
+.game-shell:fullscreen .fullscreen-hud span,
+.game-shell.is-fullscreen-preview .fullscreen-hud span {
   min-width: 104px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 8px;
-  background: rgba(238, 244, 255, 0.94);
+  background: rgba(238, 244, 255, 0.98);
   color: var(--blue-dark);
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 900;
 }
 
-.game-shell:fullscreen .game-viewport {
+.game-shell:fullscreen .game-viewport,
+.game-shell.is-fullscreen-preview .game-viewport {
   position: absolute;
   inset: 0;
   display: grid;
@@ -855,78 +883,110 @@ h3 {
   border-radius: 0;
 }
 
-.game-shell:fullscreen .game-frame {
+.game-shell:fullscreen .game-frame,
+.game-shell.is-fullscreen-preview .game-frame {
   width: min(calc(100vw - 24px), calc((100vh - 24px) * 16 / 9));
   height: min(calc(100vh - 24px), calc((100vw - 24px) * 9 / 16));
   aspect-ratio: 16 / 9;
 }
 
-.game-shell:fullscreen #gameCanvas {
+.game-shell:fullscreen #gameCanvas,
+.game-shell.is-fullscreen-preview #gameCanvas {
   cursor: crosshair;
 }
 
-.game-shell:fullscreen .game-controls {
+.game-shell:fullscreen .game-controls,
+.game-shell.is-fullscreen-preview .game-controls {
   position: absolute;
   z-index: 3;
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .game-shell:fullscreen .primary-button,
-.game-shell:fullscreen .secondary-button {
-  min-height: 40px;
-  padding-inline: 14px;
+.game-shell:fullscreen .secondary-button,
+.game-shell.is-fullscreen-preview .primary-button,
+.game-shell.is-fullscreen-preview .secondary-button {
+  min-height: 36px;
+  padding-inline: 12px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(219, 227, 244, 0.9);
+  box-shadow: none;
+  font-size: 0.84rem;
 }
 
-.game-shell:fullscreen .primary-button {
+.game-shell:fullscreen .primary-button,
+.game-shell.is-fullscreen-preview .primary-button {
   background: var(--blue);
 }
 
-.game-shell:fullscreen .touch-controls {
+.game-shell:fullscreen .touch-controls,
+.game-shell.is-fullscreen-preview .touch-controls {
   position: absolute;
   z-index: 3;
   margin-top: 0;
 }
 
+.game-shell:fullscreen .touch-move-button,
+.game-shell.is-fullscreen-preview .touch-move-button {
+  min-width: 60px;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
 @media (orientation: portrait) {
-  .game-shell:fullscreen .fullscreen-hud {
+  .game-shell:fullscreen .fullscreen-hud,
+  .game-shell.is-fullscreen-preview .fullscreen-hud {
     top: 12px;
-    left: 50%;
-    flex-wrap: wrap;
-    justify-content: center;
-    transform: translateX(-50%);
+    left: 12px;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .game-shell:fullscreen .game-controls {
+  .game-shell:fullscreen .game-controls,
+  .game-shell.is-fullscreen-preview .game-controls {
+    right: 12px;
     bottom: 12px;
-    left: 50%;
-    justify-content: center;
-    transform: translateX(-50%);
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .game-shell:fullscreen .touch-controls {
-    bottom: 66px;
-    left: 50%;
-    justify-content: center;
-    transform: translateX(-50%);
+  .game-shell:fullscreen .touch-controls,
+  .game-shell.is-fullscreen-preview .touch-controls {
+    left: 12px;
+    bottom: 12px;
+    flex-direction: column;
+  }
+
+  .game-shell:fullscreen[data-game="cryptogram"] .touch-controls,
+  .game-shell.is-fullscreen-preview[data-game="cryptogram"] .touch-controls {
+    display: none !important;
   }
 }
 
 @media (orientation: landscape) {
-  .game-shell:fullscreen .fullscreen-hud {
+  .game-shell:fullscreen .game-frame,
+  .game-shell.is-fullscreen-preview .game-frame {
+    width: min(calc(100vw - 280px), calc((100vh - 24px) * 16 / 9));
+    height: min(calc(100vh - 24px), calc((100vw - 280px) * 9 / 16));
+  }
+
+  .game-shell:fullscreen .fullscreen-hud,
+  .game-shell.is-fullscreen-preview .fullscreen-hud {
     top: 16px;
     left: 16px;
     flex-direction: column;
     align-items: stretch;
   }
 
-  .game-shell:fullscreen .fullscreen-hud span {
-    min-width: 124px;
+  .game-shell:fullscreen .fullscreen-hud span,
+  .game-shell.is-fullscreen-preview .fullscreen-hud span {
+    min-width: 108px;
   }
 
-  .game-shell:fullscreen .game-controls {
+  .game-shell:fullscreen .game-controls,
+  .game-shell.is-fullscreen-preview .game-controls {
     right: 16px;
     bottom: 16px;
     flex-direction: column;
@@ -934,19 +994,28 @@ h3 {
   }
 
   .game-shell:fullscreen .game-controls .primary-button,
-  .game-shell:fullscreen .game-controls .secondary-button {
-    min-width: 144px;
+  .game-shell:fullscreen .game-controls .secondary-button,
+  .game-shell.is-fullscreen-preview .game-controls .primary-button,
+  .game-shell.is-fullscreen-preview .game-controls .secondary-button {
+    min-width: 116px;
   }
 
-  .game-shell:fullscreen .touch-controls {
+  .game-shell:fullscreen .touch-controls,
+  .game-shell.is-fullscreen-preview .touch-controls {
     left: 16px;
     bottom: 16px;
     flex-direction: column;
   }
 
-  .game-shell:fullscreen[data-game="code-runner"] .fullscreen-hud {
+  .game-shell:fullscreen[data-game="code-runner"] .fullscreen-hud,
+  .game-shell.is-fullscreen-preview[data-game="code-runner"] .fullscreen-hud {
     top: 16px;
     left: 16px;
+  }
+
+  .game-shell:fullscreen[data-game="cryptogram"] .touch-controls,
+  .game-shell.is-fullscreen-preview[data-game="cryptogram"] .touch-controls {
+    display: none !important;
   }
 }
 
@@ -1191,6 +1260,11 @@ h3 {
     min-width: 0;
   }
 
+  .brand-version {
+    padding-inline: 6px;
+    font-size: 0.68rem;
+  }
+
   .nav {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1307,7 +1381,8 @@ h3 {
     aspect-ratio: 3 / 4;
   }
 
-  .game-shell:fullscreen .game-frame {
+  .game-shell:fullscreen .game-frame,
+  .game-shell.is-fullscreen-preview .game-frame {
     width: min(calc(100vw - 24px), calc((100vh - 24px) * 16 / 9));
     height: min(calc(100vh - 24px), calc((100vw - 24px) * 9 / 16));
     aspect-ratio: 16 / 9;
