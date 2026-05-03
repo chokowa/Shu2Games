@@ -1447,7 +1447,7 @@ h3 {
     padding: 12px;
   }
 
-  .game-controls {
+  .game-shell:not(:fullscreen):not(.is-fullscreen-preview) .game-controls {
     position: sticky;
     bottom: 0;
     z-index: 2;
@@ -1459,8 +1459,8 @@ h3 {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #fff 28%);
   }
 
-  .game-controls .primary-button,
-  .game-controls .secondary-button {
+  .game-shell:not(:fullscreen):not(.is-fullscreen-preview) .game-controls .primary-button,
+  .game-shell:not(:fullscreen):not(.is-fullscreen-preview) .game-controls .secondary-button {
     width: 100%;
     min-height: 46px;
     padding-inline: 8px;

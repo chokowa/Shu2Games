@@ -635,6 +635,51 @@ function drawLeftAlignedLines(lines, x, y, lineHeight) {
   ctx.textAlign = previousAlign;
 }
 
+function wrapCanvasText(text, maxWidth) {
+  const lines = [];
+  let line = "";
+  [...String(text)].forEach((char) => {
+    const candidate = line + char;
+    if (line && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = char;
+      return;
+    }
+    line = candidate;
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWrappedLines(lines, x, y, maxWidth, maxHeight, options = {}) {
+  const weight = options.weight || "800";
+  const color = options.color || "#64708a";
+  const align = options.align || "left";
+  const minSize = options.minSize || 12;
+  let size = options.size || 22;
+  let wrapped = [];
+  let lineHeight = size * 1.25;
+
+  while (size >= minSize) {
+    ctx.font = `${weight} ${size}px system-ui`;
+    wrapped = lines.flatMap((line) => wrapCanvasText(line, maxWidth));
+    lineHeight = Math.round(size * 1.24);
+    if (wrapped.length * lineHeight <= maxHeight) break;
+    size -= 1;
+  }
+
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `${weight} ${size}px system-ui`;
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  const top = y - ((wrapped.length - 1) * lineHeight) / 2;
+  wrapped.forEach((line, index) => {
+    ctx.fillText(line, x, top + index * lineHeight);
+  });
+  ctx.restore();
+}
+
 function syncFullscreenButtons() {
   fullscreenButton.textContent = document.fullscreenElement ? "全画面を終了" : "全画面表示";
   fullscreenPreviewButton.textContent = isFullscreenPreview() ? "確認を終了" : "PCで確認";
@@ -1603,20 +1648,25 @@ function drawCryptogram() {
       drawCryptogramCorrectPanel(compact);
     } else {
       ctx.fillStyle = "#64708a";
-      ctx.font = fullscreenPortrait ? "800 26px system-ui" : fullscreen ? "800 20px system-ui" : compact ? "800 17px system-ui" : "800 22px system-ui";
-      if (fullscreenPortrait) {
-        drawLeftAlignedLines(cryptogramStartGuideLines, problemBox.x + 44, problemBox.y + 98, 34);
-      } else {
-        const size = fullscreen ? 20 : compact ? 17 : 22;
-        const maxTextWidth = Math.max(...cryptogramStartGuideLines.map((line) => ctx.measureText(line).width));
-        if (fullscreen && maxTextWidth > problemBox.w - 44) fitCanvasFont("800", size, "system-ui", cryptogramStartGuideLines.join(" "), problemBox.w - 44);
-        drawLeftAlignedLines(
-          cryptogramStartGuideLines,
-          problemBox.x + (fullscreen ? 44 : compact ? 42 : 64),
-          problemBox.y + (fullscreen ? 80 : compact ? 86 : 100),
-          fullscreen ? 26 : compact ? 24 : 30,
-        );
-      }
+      const titleBottom = problemBox.y + (fullscreen ? 58 : compact ? 54 : 70);
+      const guideX = problemBox.x + (fullscreen ? Math.max(20, problemBox.w * 0.12) : compact ? 42 : 64);
+      const guideMaxWidth = problemBox.x + problemBox.w - guideX - (fullscreen ? 16 : 22);
+      const guideTop = titleBottom + (fullscreen ? 16 : 20);
+      const guideHeight = Math.max(46, problemBox.y + problemBox.h - guideTop - 22);
+      drawWrappedLines(
+        cryptogramStartGuideLines,
+        guideX,
+        guideTop + guideHeight / 2,
+        guideMaxWidth,
+        guideHeight,
+        {
+          size: fullscreen ? Math.min(24, Math.max(15, problemBox.h * 0.09)) : compact ? 17 : 22,
+          minSize: fullscreen ? 11 : 13,
+          weight: "800",
+          color: "#64708a",
+          align: "left",
+        },
+      );
       if (cryptogram.choices.length) {
         drawCryptogramChoiceCards(compact);
       } else {
@@ -2055,6 +2105,11 @@ function drawCryptogramChoiceCards(compact = false) {
     const choice = cryptogram.choices[card.index];
     if (!choice) return;
     const label = choice.source.language === "English" ? "English" : "ひらがな";
+    const isFullscreen = isFullscreenActive();
+    const titleSize = isFullscreen ? Math.max(15, Math.min(fullscreenPortrait ? 25 : 19, card.h * 0.26)) : compact ? 20 : 22;
+    const clueSize = isFullscreen ? Math.max(14, Math.min(fullscreenPortrait ? 30 : 21, card.h * 0.28)) : compact ? 22 : 26;
+    const titleY = card.y + card.h * (isFullscreen ? 0.34 : compact ? 0.28 : 0.26);
+    const clueY = card.y + card.h * (isFullscreen ? 0.72 : compact ? 0.68 : 0.63);
 
     ctx.fillStyle = "#f6f8ff";
     roundRect(card.x, card.y, card.w, card.h, 16);
@@ -2064,20 +2119,12 @@ function drawCryptogramChoiceCards(compact = false) {
     ctx.stroke();
 
     ctx.fillStyle = "#2f80ff";
-    if (isFullscreenActive()) {
-      fitCanvasFont("900", fullscreenPortrait ? 26 : 19, "system-ui", `${label} ${choice.difficulty.label}`, card.w - 20);
-    } else {
-      ctx.font = compact ? "900 20px system-ui" : "900 22px system-ui";
-    }
-    ctx.fillText(`${label} ${choice.difficulty.label}`, card.x + card.w / 2, card.y + (isFullscreenActive() ? card.h * 0.36 : compact ? 30 : 38));
+    fitCanvasFont("900", titleSize, "system-ui", `${label} ${choice.difficulty.label}`, card.w - 20);
+    ctx.fillText(`${label} ${choice.difficulty.label}`, card.x + card.w / 2, titleY);
 
     ctx.fillStyle = "#64708a";
-    if (isFullscreenActive()) {
-      fitCanvasFont("900", fullscreenPortrait ? 32 : 22, "system-ui", choice.source.clue, card.w - 20);
-    } else {
-      ctx.font = compact ? "900 22px system-ui" : "900 26px system-ui";
-    }
-    ctx.fillText(choice.source.clue, card.x + card.w / 2, card.y + (isFullscreenActive() ? card.h * 0.72 : compact ? 76 : 94));
+    fitCanvasFont("900", clueSize, "system-ui", choice.source.clue, card.w - 20);
+    ctx.fillText(choice.source.clue, card.x + card.w / 2, clueY);
   });
 }
 
@@ -2997,6 +3044,21 @@ window.addEventListener("resize", () => {
   updateTouchControls();
   redrawActiveGame();
 });
+
+function scheduleViewportRedraw() {
+  [0, 120, 320].forEach((delay) => {
+    window.setTimeout(() => {
+      configureCanvasSize();
+      updateTouchControls();
+      redrawActiveGame();
+    }, delay);
+  });
+}
+
+window.addEventListener("orientationchange", scheduleViewportRedraw);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", scheduleViewportRedraw);
+}
 
 window.addEventListener("hashchange", route);
 
