@@ -4,12 +4,13 @@ const games = {
   "gem-pop": {
     title: "Gem Pop",
     genre: "反射神経ゲーム",
-    description: "落ちてくるGEMをクリックしてスコアを伸ばす、シンプルな反射ゲーム。",
+    description: "落ちてくるGEMをタップしてスコアを伸ばす、シンプルな反射ゲーム。",
     thumbClass: "thumb-gem-pop",
     order: 1,
     releasedAt: "2026-05-01",
     duration: 30,
-    hint: "落ちてくるGEMをクリックして集めよう。金色は高得点です。",
+    hint: "落ちてくるGEMをタップして集めよう。金色は高得点です。",
+    shortRule: "GEMをタップ",
     boardId: "gemPopRanks",
   },
   "code-runner": {
@@ -20,7 +21,8 @@ const games = {
     order: 2,
     releasedAt: "2026-05-01",
     duration: 45,
-    hint: "左右キーかA/D、タッチボタンで動いて、青いコードブロックを集めよう。赤いバグはよけてください。",
+    hint: "左右ボタンで動いて、青いコードブロックを集めよう。赤いバグはよけてください。",
+    shortRule: "左右でよける",
     boardId: "codeRunnerRanks",
   },
   "passcode-crack": {
@@ -31,7 +33,8 @@ const games = {
     order: 3,
     releasedAt: "2026-05-01",
     duration: 90,
-    hint: "4桁コードを解除。ヒントは数字と位置の2種類です。",
+    hint: "数字をタップして4桁コードを解除。ヒントは数字と位置の2種類です。",
+    shortRule: "数字を推理",
     boardId: "passcodeRanks",
   },
   cryptogram: {
@@ -42,7 +45,8 @@ const games = {
     order: 4,
     releasedAt: "2026-05-02",
     duration: 60,
-    hint: "同じ暗号記号は同じ文字。見えている文字を手がかりに穴を埋めよう。",
+    hint: "同じ暗号記号は同じ文字。見えている文字を手がかりに、穴をタップして埋めよう。",
+    shortRule: "文字を埋める",
     boardId: "cryptogramRanks",
   },
 };
@@ -94,6 +98,7 @@ const landingSections = ["#home", "#profile", "#games", "#scoreboard"].map((sele
 );
 const gameViewport = document.querySelector("#gameViewport");
 const gameShell = document.querySelector("#gameShell");
+const gameFrame = document.querySelector(".game-frame");
 const nameDialog = document.querySelector("#nameDialog");
 const nameForm = document.querySelector("#nameForm");
 const playerNameInput = document.querySelector("#playerNameInput");
@@ -146,12 +151,20 @@ let cryptogram = {
   solvedText: "",
   recentTexts: [],
   awaitingNext: false,
+  practiceMode: false,
+  practiceComplete: false,
 };
 
 const cryptogramDifficulty = [
   { stars: 1, label: "★", holes: 1, points: 500 },
   { stars: 2, label: "★★", holes: 2, points: 900 },
   { stars: 3, label: "★★★", holes: 3, points: 1400 },
+];
+
+const cryptogramStartGuideLines = [
+  "• スタートを押すと60秒タイマー開始",
+  "• 練習は1問だけ。できたらもどるで戻れるよ",
+  "• てんてん・まるは、ついていない文字でOK",
 ];
 
 const cryptogramSources = [
@@ -496,12 +509,130 @@ const cryptogramTranslations = {
   "we count small blocks": "わたしたちは小さいブロックを数えます。",
 };
 
+const kanaAnswerMap = {
+  が: "か",
+  ぎ: "き",
+  ぐ: "く",
+  げ: "け",
+  ご: "こ",
+  ざ: "さ",
+  じ: "し",
+  ず: "す",
+  ぜ: "せ",
+  ぞ: "そ",
+  だ: "た",
+  ぢ: "ち",
+  づ: "つ",
+  で: "て",
+  ど: "と",
+  ば: "は",
+  び: "ひ",
+  ぶ: "ふ",
+  べ: "へ",
+  ぼ: "ほ",
+  ぱ: "は",
+  ぴ: "ひ",
+  ぷ: "ふ",
+  ぺ: "へ",
+  ぽ: "ほ",
+};
+
+function normalizeCryptogramAnswer(value, language = "") {
+  if (language === "English") return value;
+  return kanaAnswerMap[value] || value;
+}
+
 function isFullscreenPreview() {
   return gameShell.classList.contains("is-fullscreen-preview");
 }
 
 function isFullscreenActive() {
   return Boolean(document.fullscreenElement) || isFullscreenPreview();
+}
+
+function isCanvasPortrait() {
+  return canvas.height > canvas.width;
+}
+
+function getFullscreenInsets() {
+  if (!isFullscreenActive()) return { top: 0, bottom: 0, side: 0 };
+  return isCanvasPortrait()
+    ? { top: 74, bottom: 158, side: 18 }
+    : { top: 68, bottom: 60, side: 18 };
+}
+
+function getCryptogramMessageY() {
+  if (!isFullscreenActive()) return null;
+  const problemBox = getCryptogramProblemBox(false);
+  if (isCanvasPortrait()) return problemBox.y + problemBox.h + 60;
+  return problemBox.y + problemBox.h + 10;
+}
+
+function getCryptogramKeyboardArea() {
+  const insets = getFullscreenInsets();
+  if (!isFullscreenActive()) return null;
+  const messageY = getCryptogramMessageY();
+  const top = isCanvasPortrait() ? messageY + 36 : messageY + 10;
+  return {
+    x: insets.side,
+    y: top,
+    w: canvas.width - insets.side * 2,
+    h: Math.max(76, canvas.height - top - insets.bottom),
+  };
+}
+
+function fitCanvasFont(weight, size, family = "system-ui", text = "", maxWidth = canvas.width) {
+  let nextSize = size;
+  do {
+    ctx.font = `${weight} ${nextSize}px ${family}`;
+    if (!text || ctx.measureText(text).width <= maxWidth) return nextSize;
+    nextSize -= 1;
+  } while (nextSize >= 14);
+  return nextSize;
+}
+
+function drawCenteredTextBlock(text, x, y, maxWidth, lineHeight, maxLines = 2) {
+  const chars = [...String(text)];
+  const lines = [];
+  let line = "";
+
+  chars.forEach((char) => {
+    const candidate = line + char;
+    if (line && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = char;
+      return;
+    }
+    line = candidate;
+  });
+  if (line) lines.push(line);
+
+  const visibleLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    visibleLines[visibleLines.length - 1] = `${visibleLines[visibleLines.length - 1].slice(0, -1)}…`;
+  }
+
+  const top = y - ((visibleLines.length - 1) * lineHeight) / 2;
+  visibleLines.forEach((item, index) => {
+    ctx.fillText(item, x, top + index * lineHeight);
+  });
+}
+
+function drawCenteredLines(lines, x, y, lineHeight) {
+  const top = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, top + index * lineHeight);
+  });
+}
+
+function drawLeftAlignedLines(lines, x, y, lineHeight) {
+  const previousAlign = ctx.textAlign;
+  const top = y - ((lines.length - 1) * lineHeight) / 2;
+  ctx.textAlign = "left";
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, top + index * lineHeight);
+  });
+  ctx.textAlign = previousAlign;
 }
 
 function syncFullscreenButtons() {
@@ -533,6 +664,17 @@ function isCompactPuzzleGame() {
 }
 
 function configureCanvasSize() {
+  if (isFullscreenActive()) {
+    const rect = gameFrame.getBoundingClientRect();
+    const nextWidth = Math.max(320, Math.round(rect.width || window.innerWidth));
+    const nextHeight = Math.max(320, Math.round(rect.height || window.innerHeight));
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+    }
+    return;
+  }
+
   const compact = isCompactPuzzleGame();
   const nextWidth = compact ? 720 : 1280;
   const nextHeight = compact && activeGameId === "cryptogram" ? 960 : 720;
@@ -572,14 +714,18 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getPlayerDisplayName() {
+  return state.playerName || "ゲスト";
+}
+
 function updateProfile() {
-  activePlayerName.textContent = state.playerName || "未登録";
+  activePlayerName.textContent = state.playerName || "ゲスト";
   gemBalance.textContent = state.gems.toLocaleString("ja-JP");
   const day = todayKey();
   todayBest.textContent = Math.max(
     ...Object.keys(games).map((gameId) => state.bestByDay[`${day}:${gameId}`] || 0),
   ).toLocaleString("ja-JP");
-  changePlayerButton.textContent = state.playerName ? `${state.playerName} / 変更` : "なまえ登録";
+  changePlayerButton.textContent = state.playerName ? `${state.playerName} / 変更` : "名前をつける";
   renderAvatarShop();
 }
 
@@ -708,10 +854,12 @@ function renderGameCards() {
         <div class="game-card-heading">
           <p class="label">${escapeHtml(game.genre)}</p>
           <h3>${escapeHtml(game.title)}</h3>
+          <span class="game-rule-chip">${escapeHtml(game.shortRule)}</span>
           <p>${escapeHtml(game.description)}</p>
         </div>
         <div class="game-meta-row">
           <span class="top-player">1位 ${escapeHtml(leader)}</span>
+          <button class="play-chip" type="button" data-play-game="${gameId}">遊ぶ</button>
           <button class="favorite-button ${isFavorite ? "is-favorite" : ""}" type="button" data-favorite="${gameId}" aria-pressed="${isFavorite}">
             ${isFavorite ? "★ お気に入り" : "☆ お気に入り"}
           </button>
@@ -840,19 +988,19 @@ function updateHud() {
 }
 
 function startGame() {
-  if (!state.playerName) {
-    openNameDialog();
-    return;
-  }
   if (activeGameId === "cryptogram") {
-    prepareCryptogramChoices(true);
+    if (isRunning) return;
+    isRunning = true;
     score = 0;
     roundGems = 0;
     timeLeft = games[activeGameId].duration;
+    prepareCryptogramChoices(true);
+    lastTick = performance.now();
     startButton.textContent = "問題を選んでね";
     startButton.disabled = true;
     updateHud();
     drawCryptogram();
+    animationId = requestAnimationFrame(loop);
     return;
   }
   isRunning = true;
@@ -887,7 +1035,7 @@ function endGame() {
   const dayKey = `${day}:${activeGameId}`;
   state.bestByDay[dayKey] = Math.max(state.bestByDay[dayKey] || 0, score);
   state.scores[activeGameId].push({
-    name: state.playerName,
+    name: getPlayerDisplayName(),
     score,
     gems: earned,
     date: new Date().toISOString(),
@@ -1078,17 +1226,64 @@ function prepareCryptogramChoices(resetStats = false) {
     solvedText: resetStats ? "" : cryptogram.solvedText,
     recentTexts: resetStats ? [] : cryptogram.recentTexts,
     awaitingNext: false,
+    practiceMode: false,
+    practiceComplete: false,
   };
+}
+
+function startCryptogramPractice() {
+  const practiceSources = cryptogramSources.filter(
+    (source) => hasCryptogramRepeat(source) && countCryptogramRepeats(source) >= 1,
+  );
+  const source = practiceSources[Math.floor(Math.random() * practiceSources.length)] || cryptogramSources[0];
+  const difficulty = cryptogramDifficulty[0];
+  cryptogram = {
+    puzzle: createCryptogramPuzzle(source, difficulty),
+    choices: [],
+    selected: 0,
+    message: "下のキーボードで文字を選んでください",
+    mistakes: 0,
+    solved: 0,
+    lastAward: 0,
+    solvedText: "",
+    recentTexts: cryptogram.recentTexts || [],
+    awaitingNext: false,
+    practiceMode: true,
+    practiceComplete: false,
+  };
+  updateHud();
+  drawCryptogram();
+}
+
+function returnToCryptogramStart() {
+  isRunning = false;
+  score = 0;
+  roundGems = 0;
+  timeLeft = games.cryptogram.duration;
+  startButton.textContent = "スタート";
+  startButton.disabled = false;
+  cryptogram = {
+    puzzle: null,
+    choices: [],
+    selected: 0,
+    message: "スタートを押して問題カードを出そう",
+    mistakes: 0,
+    solved: 0,
+    lastAward: 0,
+    solvedText: "",
+    recentTexts: cryptogram.recentTexts || [],
+    awaitingNext: false,
+    practiceMode: false,
+    practiceComplete: false,
+  };
+  updateHud();
+  drawCryptogram();
 }
 
 function selectCryptogramChoice(index) {
   const choice = cryptogram.choices[index];
   if (!choice) return;
-  if (!state.playerName) {
-    openNameDialog();
-    return;
-  }
-  const wasRunning = isRunning;
+  if (!isRunning) return;
   cryptogram = {
     puzzle: choice.puzzle,
     choices: [],
@@ -1100,14 +1295,9 @@ function selectCryptogramChoice(index) {
     solvedText: "",
     recentTexts: cryptogram.recentTexts,
     awaitingNext: false,
+    practiceMode: false,
+    practiceComplete: false,
   };
-  if (!wasRunning) {
-    isRunning = true;
-    score = 0;
-    roundGems = 0;
-    timeLeft = games[activeGameId].duration;
-    animationId = requestAnimationFrame(loop);
-  }
   lastTick = performance.now();
   startButton.textContent = "プレイ中";
   startButton.disabled = true;
@@ -1161,7 +1351,7 @@ function updateCryptogram() {
 }
 
 function handleCryptogramKey(value) {
-  if (!isRunning || activeGameId !== "cryptogram" || !cryptogram.puzzle) return;
+  if ((!(isRunning || cryptogram.practiceMode)) || activeGameId !== "cryptogram" || !cryptogram.puzzle) return;
   const hole = cryptogram.puzzle.holes[cryptogram.selected];
   if (!hole) return;
 
@@ -1173,7 +1363,9 @@ function handleCryptogramKey(value) {
   }
 
   hole.value = value;
-  if (value === hole.answer) {
+  const normalizedValue = normalizeCryptogramAnswer(value, cryptogram.puzzle.language);
+  const normalizedAnswer = normalizeCryptogramAnswer(hole.answer, cryptogram.puzzle.language);
+  if (normalizedValue === normalizedAnswer) {
     cryptogram.message = "正解の文字です";
     cryptogram.selected = Math.min(cryptogram.selected + 1, cryptogram.puzzle.holes.length - 1);
   } else {
@@ -1181,20 +1373,34 @@ function handleCryptogramKey(value) {
     cryptogram.message = "ちがう文字です";
   }
 
-  if (cryptogram.puzzle.holes.every((item) => item.value === item.answer)) {
+  if (
+    cryptogram.puzzle.holes.every(
+      (item) =>
+        normalizeCryptogramAnswer(item.value, cryptogram.puzzle.language) ===
+        normalizeCryptogramAnswer(item.answer, cryptogram.puzzle.language),
+    )
+  ) {
     const difficulty = cryptogram.puzzle.difficulty || cryptogramDifficulty[0];
     const mistakePenalty = cryptogram.mistakes * 90;
     const award = Math.max(Math.floor(difficulty.points * 0.35), difficulty.points - mistakePenalty);
     const solvedText = cryptogram.puzzle.text;
-    score += award;
-    cryptogram.solved += 1;
-    cryptogram.lastAward = award;
+    const wasPractice = cryptogram.practiceMode;
+    if (!wasPractice) {
+      score += award;
+      cryptogram.solved += 1;
+      cryptogram.lastAward = award;
+      cryptogram.message = `正解 ${cryptogram.solved}問 / +${award}点`;
+    } else {
+      cryptogram.lastAward = 0;
+      cryptogram.message = "れんしゅうクリア";
+    }
     cryptogram.solvedText = solvedText;
     cryptogram.recentTexts = [...(cryptogram.recentTexts || []), solvedText].slice(-120);
     cryptogram.puzzle = null;
     cryptogram.choices = [];
-    cryptogram.awaitingNext = true;
-    cryptogram.message = `正解 ${cryptogram.solved}問 / +${award}点`;
+    cryptogram.awaitingNext = !wasPractice;
+    cryptogram.practiceMode = false;
+    cryptogram.practiceComplete = wasPractice;
     updateHud();
     drawCryptogram();
     return;
@@ -1366,6 +1572,7 @@ function drawCryptogram() {
   configureCanvasSize();
   const compact = window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
   const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
   const puzzle = cryptogram.puzzle;
   const shell = getCryptogramShell(compact);
   const problemBox = getCryptogramProblemBox(compact);
@@ -1381,39 +1588,61 @@ function drawCryptogram() {
   ctx.fill();
 
   ctx.fillStyle = "#2f80ff";
-  ctx.font = compact ? "900 22px system-ui" : "900 28px system-ui";
+  ctx.font = fullscreenPortrait ? "900 34px system-ui" : fullscreen ? "900 30px system-ui" : compact ? "900 22px system-ui" : "900 28px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("CRYPTOGRAM ★", canvas.width / 2, problemBox.y + (compact ? 34 : 44));
+  ctx.fillText("CRYPTOGRAM ★", canvas.width / 2, problemBox.y + (fullscreen ? 32 : compact ? 34 : 44));
 
   if (!puzzle) {
-    if (cryptogram.awaitingNext) {
+    if (cryptogram.practiceComplete) {
+      drawCryptogramPracticeResultPanel(compact);
+    } else if (cryptogram.awaitingNext) {
       drawCryptogramCorrectPanel(compact);
     } else {
       ctx.fillStyle = "#64708a";
-      ctx.font = compact ? "800 17px system-ui" : "800 22px system-ui";
-      ctx.fillText(
-        "カードを選ぶと60秒タイマー開始。時間内にたくさん解こう",
-        canvas.width / 2,
-        problemBox.y + (compact ? 78 : 92),
-      );
-      drawCryptogramChoiceCards(compact);
+      ctx.font = fullscreenPortrait ? "800 26px system-ui" : fullscreen ? "800 20px system-ui" : compact ? "800 17px system-ui" : "800 22px system-ui";
+      if (fullscreenPortrait) {
+        drawLeftAlignedLines(cryptogramStartGuideLines, problemBox.x + 44, problemBox.y + 98, 34);
+      } else {
+        const size = fullscreen ? 20 : compact ? 17 : 22;
+        const maxTextWidth = Math.max(...cryptogramStartGuideLines.map((line) => ctx.measureText(line).width));
+        if (fullscreen && maxTextWidth > problemBox.w - 44) fitCanvasFont("800", size, "system-ui", cryptogramStartGuideLines.join(" "), problemBox.w - 44);
+        drawLeftAlignedLines(
+          cryptogramStartGuideLines,
+          problemBox.x + (fullscreen ? 44 : compact ? 42 : 64),
+          problemBox.y + (fullscreen ? 80 : compact ? 86 : 100),
+          fullscreen ? 26 : compact ? 24 : 30,
+        );
+      }
+      if (cryptogram.choices.length) {
+        drawCryptogramChoiceCards(compact);
+      } else {
+        drawCryptogramStartPanel(compact);
+        drawCryptogramPracticeButton(compact);
+      }
     }
     return;
   }
 
   ctx.fillStyle = "#64708a";
-  ctx.font = compact ? "800 18px system-ui" : "800 20px system-ui";
+  ctx.font = fullscreenPortrait ? "800 24px system-ui" : fullscreen ? "800 18px system-ui" : compact ? "800 18px system-ui" : "800 20px system-ui";
   ctx.fillText(
     `${puzzle.language} ${puzzle.difficulty.label} / ${puzzle.clue}`,
     canvas.width / 2,
-    problemBox.y + (compact ? 68 : 82),
+    problemBox.y + (fullscreen ? 66 : compact ? 68 : 82),
   );
   drawCryptogramText(compact);
 
   ctx.fillStyle = "#a9b8d6";
-  ctx.font = fullscreen ? "800 16px system-ui" : compact ? "800 18px system-ui" : "800 22px system-ui";
-  ctx.fillText(cryptogram.message, canvas.width / 2, fullscreen ? 402 : compact ? 486 : 420);
+  ctx.font = fullscreenPortrait ? "800 24px system-ui" : fullscreen ? "800 16px system-ui" : compact ? "800 18px system-ui" : "800 22px system-ui";
+  if (fullscreenPortrait) {
+    drawCenteredTextBlock(cryptogram.message, canvas.width / 2, getCryptogramMessageY(), canvas.width - 72, 30, 2);
+  } else if (fullscreen) {
+    fitCanvasFont("800", 16, "system-ui", cryptogram.message, canvas.width - 220);
+    ctx.fillText(cryptogram.message, canvas.width / 2, getCryptogramMessageY());
+  } else {
+    ctx.fillText(cryptogram.message, canvas.width / 2, fullscreen ? 402 : compact ? 486 : 420);
+  }
   drawCryptogramKeyboard(compact);
 }
 
@@ -1422,66 +1651,304 @@ function getCryptogramShell(compact = false) {
     return { x: 0, y: 0, w: canvas.width, h: canvas.height };
   }
   return compact
-    ? { x: 54, y: 36, w: canvas.width - 108, h: 884 }
+    ? { x: 32, y: 28, w: canvas.width - 64, h: 904 }
     : { x: 54, y: 48, w: canvas.width - 108, h: 624 };
 }
 
 function getCryptogramProblemBox(compact = false) {
   if (isFullscreenActive()) {
-    return { x: 34, y: 26, w: canvas.width - 68, h: 292 };
+    const insets = getFullscreenInsets();
+    if (isCanvasPortrait()) {
+      return {
+        x: 28,
+        y: insets.top + 14,
+        w: canvas.width - 56,
+        h: Math.min(360, Math.round(canvas.height * 0.36)),
+      };
+    }
+    return {
+      x: Math.max(28, Math.round(canvas.width * 0.05)),
+      y: insets.top + 6,
+      w: canvas.width - Math.max(56, Math.round(canvas.width * 0.1)),
+      h: Math.min(176, Math.round(canvas.height * 0.52)),
+    };
   }
   return compact
-    ? { x: 86, y: 68, w: canvas.width - 172, h: 390 }
+    ? { x: 58, y: 54, w: canvas.width - 116, h: 390 }
     : { x: 86, y: 82, w: canvas.width - 172, h: 310 };
 }
 
 function getCryptogramCells(compact = false) {
   const puzzle = cryptogram.puzzle;
   if (!puzzle) return [];
+  if (puzzle.language === "English") {
+    return getEnglishCryptogramCells(compact);
+  }
   const problemBox = getCryptogramProblemBox(compact);
-  const cellW = compact ? 52 : 58;
-  const gap = compact ? 6 : 8;
-  const lineGap = compact ? 82 : 86;
-  const availableWidth = problemBox.w - (compact ? 44 : 72);
-  const maxPerLine = Math.max(6, Math.floor((availableWidth + gap) / (cellW + gap)));
-  const lines = [];
-  let current = [];
+  const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
+  const fullscreenLandscape = fullscreen && !isCanvasPortrait();
+  const narrowPortrait = fullscreenPortrait && canvas.width < 430;
+  const tightLandscape = fullscreenLandscape && canvas.height < 430;
+  let cellW = fullscreenPortrait ? (narrowPortrait ? 40 : 46) : fullscreenLandscape ? (tightLandscape ? 38 : 46) : compact ? 52 : 58;
+  let cellH = fullscreenPortrait ? (narrowPortrait ? 42 : 44) : fullscreenLandscape ? (tightLandscape ? 28 : 36) : compact ? 58 : 66;
+  const gap = fullscreenPortrait ? 4 : fullscreenLandscape ? 4 : compact ? 6 : 8;
+  let lineGap = fullscreenPortrait ? (narrowPortrait ? 54 : 60) : fullscreenLandscape ? (tightLandscape ? 36 : 46) : compact ? 82 : 86;
+  const availableWidth = problemBox.w - (fullscreen ? 36 : compact ? 44 : 72);
+  const maxLines = fullscreen ? 3 : compact ? 3 : 2;
+  const minCellW = fullscreen ? (fullscreenPortrait ? 28 : 26) : cellW;
+  let lines = [];
 
-  puzzle.chars.forEach((char, index) => {
-    if (current.length >= maxPerLine && char !== " ") {
-      lines.push(current);
-      current = [];
-    }
-    current.push({ char, index });
-  });
-  if (current.length) lines.push(current);
+  while (cellW >= minCellW) {
+    const maxPerLine = Math.max(6, Math.floor((availableWidth + gap) / (cellW + gap)));
+    lines = buildCryptogramLines(puzzle, maxPerLine, fullscreen);
+    if (lines.length <= maxLines) break;
+    cellW -= 2;
+  }
 
-  const maxLines = compact ? 3 : 2;
   while (lines.length > maxLines) {
     const tail = lines.pop();
     lines[lines.length - 1].push(...tail);
   }
 
-  const contentTop = problemBox.y + (compact ? 130 : 126);
-  const contentHeight = problemBox.y + problemBox.h - contentTop - 28;
-  const blockHeight = (lines.length - 1) * lineGap + (compact ? 58 : 66);
-  const baseY = contentTop + Math.max(0, (contentHeight - blockHeight) / 2);
+  const contentTop = problemBox.y + (fullscreenPortrait ? 108 : fullscreenLandscape ? (tightLandscape ? 82 : 92) : compact ? 130 : 126);
+  const contentHeight = problemBox.y + problemBox.h - contentTop - (fullscreen ? 18 : 28);
+  let symbolSize = fullscreen ? Math.max(10, Math.min(14, cellH * 0.28)) : compact ? 14 : 16;
+  let letterSize = fullscreen ? Math.max(22, Math.min(32, cellH * 0.7)) : compact ? 30 : 34;
+  let symbolOffset = fullscreen ? Math.max(10, Math.min(14, cellH * 0.28)) : 13;
+  if (fullscreen && lines.length > 1) {
+    lineGap = Math.max(lineGap, Math.floor((contentHeight - symbolOffset - cellH) / (lines.length - 1)));
+  }
+  let blockHeight = symbolOffset + (lines.length - 1) * lineGap + cellH;
+  if (fullscreen && blockHeight > contentHeight) {
+    const scale = Math.max(0.62, contentHeight / blockHeight);
+    cellW = Math.max(30, Math.floor(cellW * scale));
+    cellH = Math.max(26, Math.floor(cellH * scale));
+    lineGap = Math.max(cellH + 8, Math.floor(lineGap * scale));
+    symbolSize = Math.max(9, Math.floor(symbolSize * scale));
+    letterSize = Math.max(20, Math.floor(letterSize * scale));
+    symbolOffset = Math.max(8, Math.floor(symbolOffset * scale));
+    if (lines.length > 1) {
+      lineGap = Math.max(cellH + symbolOffset + 8, Math.floor((contentHeight - symbolOffset - cellH) / (lines.length - 1)));
+    }
+    blockHeight = symbolOffset + (lines.length - 1) * lineGap + cellH;
+  }
+  const baseY = contentTop + symbolOffset + Math.max(0, (contentHeight - blockHeight) / 2);
   return lines.flatMap((line, lineIndex) => {
-    const totalWidth = line.length * cellW + (line.length - 1) * gap;
-    const startX = (canvas.width - totalWidth) / 2;
+    let rowCellW = cellW;
+    const rowMaxWidth = availableWidth;
+    const rawRowWidth = line.length * rowCellW + (line.length - 1) * gap;
+    if (fullscreen && rawRowWidth > rowMaxWidth) {
+      rowCellW = Math.max(24, Math.floor((rowMaxWidth - (line.length - 1) * gap) / line.length));
+    }
+    const totalWidth = line.length * rowCellW + (line.length - 1) * gap;
+    const leftEdge = problemBox.x + (fullscreen ? 42 : compact ? 44 : 72);
+    const centeredX = (canvas.width - totalWidth) / 2;
+    const startX = lines.length > 1 ? leftEdge : centeredX;
     return line.map((item, columnIndex) => ({
       ...item,
-      x: startX + columnIndex * (cellW + gap),
+      x: startX + columnIndex * (rowCellW + gap),
       y: baseY + lineIndex * lineGap,
-      w: cellW,
-      h: compact ? 58 : 66,
+      w: rowCellW,
+      h: cellH,
+      symbolSize,
+      letterSize,
+      symbolOffset,
     }));
   });
+}
+
+function getEnglishCryptogramCells(compact = false) {
+  const puzzle = cryptogram.puzzle;
+  const problemBox = getCryptogramProblemBox(compact);
+  const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
+  const fullscreenLandscape = fullscreen && !isCanvasPortrait();
+  const compactEnglish = !fullscreen && compact;
+  const contentTop = problemBox.y + (
+    fullscreenPortrait ? 108 :
+    fullscreenLandscape ? (canvas.height < 430 ? 82 : 92) :
+    compactEnglish ? 130 :
+    126
+  );
+  const contentBottom = problemBox.y + problemBox.h - (fullscreen ? 18 : 28);
+  const contentHeight = contentBottom - contentTop;
+  const maxLines = fullscreen ? 3 : compact ? 3 : 2;
+  const gap = fullscreen ? 4 : compact ? 6 : 8;
+  const wordGap = fullscreen ? (fullscreenPortrait ? 16 : 14) : compact ? 18 : 24;
+  const minCellW = fullscreen ? (fullscreenPortrait ? 24 : 22) : compact ? 38 : 42;
+  let cellW = fullscreenPortrait ? (canvas.width < 430 ? 40 : 46) : fullscreenLandscape ? (canvas.height < 430 ? 38 : 46) : compact ? 52 : 58;
+  let cellH = fullscreenPortrait ? (canvas.width < 430 ? 42 : 44) : fullscreenLandscape ? (canvas.height < 430 ? 28 : 36) : compact ? 58 : 66;
+  const words = getCryptogramWordGroups(puzzle);
+  const maxWidth = problemBox.w - (fullscreen ? 36 : compact ? 44 : 72);
+  let lines = [];
+
+  while (cellW >= minCellW) {
+    lines = packCryptogramWords(words, cellW, gap, wordGap, maxWidth);
+    if (lines.length <= maxLines) break;
+    cellW -= 2;
+    cellH = Math.max(fullscreen ? (fullscreenPortrait ? 30 : 22) : compact ? 48 : 56, Math.floor(cellH * 0.96));
+  }
+
+  while (lines.length > maxLines) {
+    const last = lines.pop();
+    const previous = lines[lines.length - 1];
+    previous.words.push(...last.words);
+  }
+
+  let symbolSize = fullscreen ? Math.max(9, Math.min(14, cellH * 0.28)) : compact ? 14 : 16;
+  let letterSize = fullscreen ? Math.max(fullscreenPortrait ? 20 : 18, Math.min(32, cellH * 0.7)) : compact ? 30 : 34;
+  let symbolOffset = fullscreen ? Math.max(8, Math.min(14, cellH * 0.28)) : 13;
+  let lineGap = lines.length > 1 ? Math.floor((contentHeight - symbolOffset - cellH) / (lines.length - 1)) : 0;
+  const minLineGap = cellH + symbolOffset + 10;
+  if (fullscreen && lines.length > 1 && lineGap < minLineGap) {
+    const scale = Math.max(0.58, (contentHeight - (lines.length - 1) * 10) / (symbolOffset + cellH + (lines.length - 1) * minLineGap));
+    cellW = Math.max(minCellW, Math.floor(cellW * scale));
+    cellH = Math.max(fullscreenPortrait ? 26 : 18, Math.floor(cellH * scale));
+    symbolSize = Math.max(8, Math.floor(symbolSize * scale));
+    letterSize = Math.max(16, Math.floor(letterSize * scale));
+    symbolOffset = Math.max(7, Math.floor(symbolOffset * scale));
+    lines = packCryptogramWords(words, cellW, gap, wordGap, maxWidth).slice(0, maxLines);
+    lineGap = lines.length > 1 ? Math.floor((contentHeight - symbolOffset - cellH) / (lines.length - 1)) : 0;
+  }
+
+  const blockHeight = symbolOffset + (lines.length - 1) * lineGap + cellH;
+  const baseY = contentTop + symbolOffset + Math.max(0, (contentHeight - blockHeight) / 2);
+
+  return lines.flatMap((line, lineIndex) => {
+    const totalWidth = line.words.reduce((sum, word, index) => {
+      const wordWidth = word.length * cellW + Math.max(0, word.length - 1) * gap;
+      return sum + wordWidth + (index > 0 ? wordGap : 0);
+    }, 0);
+    const leftEdge = problemBox.x + (isFullscreenActive() ? 42 : compact ? 44 : 72);
+    const centeredX = canvas.width / 2 - totalWidth / 2;
+    let x = lines.length > 1 ? leftEdge : centeredX;
+    const cells = [];
+    line.words.forEach((word, wordIndex) => {
+      if (wordIndex > 0) x += wordGap;
+      word.forEach((item) => {
+        cells.push({
+          ...item,
+          x,
+          y: baseY + lineIndex * lineGap,
+          w: cellW,
+          h: cellH,
+          symbolSize,
+          letterSize,
+          symbolOffset,
+        });
+        x += cellW + gap;
+      });
+      x -= gap;
+    });
+    return cells;
+  });
+}
+
+function getCryptogramWordGroups(puzzle) {
+  const words = [];
+  let word = [];
+  puzzle.chars.forEach((char, index) => {
+    if (char === " ") {
+      if (word.length) {
+        words.push(word);
+        word = [];
+      }
+      return;
+    }
+    word.push({ char, index });
+  });
+  if (word.length) words.push(word);
+  return words;
+}
+
+function packCryptogramWords(words, cellW, gap, wordGap, maxWidth) {
+  const lines = [];
+  let line = [];
+  let lineWidth = 0;
+
+  words.forEach((word) => {
+    const wordWidth = word.length * cellW + Math.max(0, word.length - 1) * gap;
+    const nextWidth = line.length ? lineWidth + wordGap + wordWidth : wordWidth;
+    if (line.length && nextWidth > maxWidth) {
+      lines.push({ words: line, width: lineWidth });
+      line = [word];
+      lineWidth = wordWidth;
+      return;
+    }
+    line.push(word);
+    lineWidth = nextWidth;
+  });
+
+  if (line.length) lines.push({ words: line, width: lineWidth });
+  return lines;
+}
+
+function buildCryptogramLines(puzzle, maxPerLine, preserveWords = false) {
+  if (!preserveWords || puzzle.language !== "English") {
+    const lines = [];
+    let current = [];
+    puzzle.chars.forEach((char, index) => {
+      if (current.length >= maxPerLine && char !== " ") {
+        lines.push(current);
+        current = [];
+      }
+      current.push({ char, index });
+    });
+    if (current.length) lines.push(current);
+    return lines;
+  }
+
+  const tokens = [];
+  let currentWord = [];
+  puzzle.chars.forEach((char, index) => {
+    if (char === " ") {
+      if (currentWord.length) {
+        tokens.push(currentWord);
+        currentWord = [];
+      }
+      tokens.push([{ char, index }]);
+      return;
+    }
+    currentWord.push({ char, index });
+  });
+  if (currentWord.length) tokens.push(currentWord);
+
+  const lines = [];
+  let line = [];
+  let lineLength = 0;
+
+  tokens.forEach((token) => {
+    const isSpace = token.length === 1 && token[0].char === " ";
+    if (isSpace && lineLength === 0) return;
+
+    const nextLength = lineLength + token.length;
+    if (!isSpace && lineLength > 0 && nextLength > maxPerLine) {
+      lines.push(line);
+      line = [];
+      lineLength = 0;
+    }
+
+    if (isSpace && lineLength + token.length > maxPerLine) {
+      lines.push(line);
+      line = [];
+      lineLength = 0;
+      return;
+    }
+
+    line.push(...token);
+    lineLength += token.length;
+  });
+
+  if (line.length) lines.push(line);
+  return lines;
 }
 
 function drawCryptogramText(compact = false) {
   const puzzle = cryptogram.puzzle;
   const cells = getCryptogramCells(compact);
+  const fullscreen = isFullscreenActive();
+  const fullscreenLandscape = fullscreen && !isCanvasPortrait();
   const holeByIndex = new Map(puzzle.holes.map((hole, index) => [hole.index, { ...hole, holeNumber: index }]));
 
   cells.forEach((cell) => {
@@ -1492,8 +1959,8 @@ function drawCryptogramText(compact = false) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#64708a";
-    ctx.font = compact ? "900 14px system-ui" : "900 16px system-ui";
-    ctx.fillText(symbol, cell.x + cell.w / 2, cell.y - 13);
+    ctx.font = `900 ${cell.symbolSize || (compact ? 14 : 16)}px system-ui`;
+    ctx.fillText(symbol, cell.x + cell.w / 2, cell.y - (fullscreen ? cell.symbolOffset : 13));
 
     if (hole) {
       const selected = cryptogram.selected === hole.holeNumber;
@@ -1504,17 +1971,36 @@ function drawCryptogramText(compact = false) {
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = hole.value === hole.answer ? "#1fc7a6" : hole.value ? "#ff5f5f" : "#172033";
-      ctx.font = compact ? "900 30px system-ui" : "900 34px system-ui";
+      ctx.font = `900 ${cell.letterSize || (compact ? 30 : 34)}px system-ui`;
       ctx.fillText(hole.value || "_", cell.x + cell.w / 2, cell.y + cell.h / 2 + 1);
     } else {
       ctx.fillStyle = "#172033";
-      ctx.font = compact ? "900 30px system-ui" : "900 34px system-ui";
+      ctx.font = `900 ${cell.letterSize || (compact ? 30 : 34)}px system-ui`;
       ctx.fillText(cell.char, cell.x + cell.w / 2, cell.y + cell.h / 2 + 1);
     }
   });
 }
 
 function getCryptogramChoiceCards(compact = false) {
+  if (isFullscreenActive() && isCanvasPortrait()) {
+    const w = canvas.width - 96;
+    const problemBox = getCryptogramProblemBox(compact);
+    const gap = 14;
+    const x = 48;
+    const y = getCryptogramMessageY() + 44;
+    const h = Math.max(56, Math.min(104, Math.floor((canvas.height - y - getFullscreenInsets().bottom - gap * 2) / 3)));
+    return [0, 1, 2].map((index) => ({ x, y: y + index * (h + gap), w, h, index }));
+  }
+  if (isFullscreenActive()) {
+    const problemBox = getCryptogramProblemBox(compact);
+    const insets = getFullscreenInsets();
+    const gap = 14;
+    const x = Math.max(28, Math.round(canvas.width * 0.06));
+    const y = problemBox.y + problemBox.h + 42;
+    const w = (canvas.width - x * 2 - gap * 2) / 3;
+    const h = Math.max(54, Math.min(84, canvas.height - y - insets.bottom - 8));
+    return [0, 1, 2].map((index) => ({ x: x + index * (w + gap), y, w, h, index }));
+  }
   if (compact) {
     const w = canvas.width - 172;
     const h = 112;
@@ -1537,14 +2023,22 @@ function getCryptogramChoiceCards(compact = false) {
 }
 
 function drawCryptogramChoiceCards(compact = false) {
-  if (!cryptogram.choices.length) prepareCryptogramChoices();
+  if (!cryptogram.choices.length) return;
   const cards = getCryptogramChoiceCards(compact);
+  const fullscreenPortrait = isFullscreenActive() && isCanvasPortrait();
 
   ctx.fillStyle = "#a9b8d6";
-  ctx.font = compact ? "800 18px system-ui" : "800 22px system-ui";
+  ctx.font = fullscreenPortrait ? "800 24px system-ui" : compact ? "800 18px system-ui" : "800 22px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(cryptogram.message, canvas.width / 2, compact ? 486 : 410);
+  if (fullscreenPortrait) {
+    drawCenteredTextBlock(cryptogram.message, canvas.width / 2, getCryptogramMessageY(), canvas.width - 72, 30, 2);
+  } else if (isFullscreenActive()) {
+    fitCanvasFont("800", 16, "system-ui", cryptogram.message, canvas.width - 220);
+    ctx.fillText(cryptogram.message, canvas.width / 2, getCryptogramMessageY());
+  } else {
+    ctx.fillText(cryptogram.message, canvas.width / 2, compact ? 486 : 410);
+  }
 
   cards.forEach((card) => {
     const choice = cryptogram.choices[card.index];
@@ -1559,16 +2053,88 @@ function drawCryptogramChoiceCards(compact = false) {
     ctx.stroke();
 
     ctx.fillStyle = "#2f80ff";
-    ctx.font = compact ? "900 20px system-ui" : "900 22px system-ui";
-    ctx.fillText(`${label} ${choice.difficulty.label}`, card.x + card.w / 2, card.y + (compact ? 30 : 38));
+    if (isFullscreenActive()) {
+      fitCanvasFont("900", fullscreenPortrait ? 26 : 19, "system-ui", `${label} ${choice.difficulty.label}`, card.w - 20);
+    } else {
+      ctx.font = compact ? "900 20px system-ui" : "900 22px system-ui";
+    }
+    ctx.fillText(`${label} ${choice.difficulty.label}`, card.x + card.w / 2, card.y + (isFullscreenActive() ? card.h * 0.36 : compact ? 30 : 38));
 
     ctx.fillStyle = "#64708a";
-    ctx.font = compact ? "900 22px system-ui" : "900 26px system-ui";
-    ctx.fillText(choice.source.clue, card.x + card.w / 2, card.y + (compact ? 76 : 94));
+    if (isFullscreenActive()) {
+      fitCanvasFont("900", fullscreenPortrait ? 32 : 22, "system-ui", choice.source.clue, card.w - 20);
+    } else {
+      ctx.font = compact ? "900 22px system-ui" : "900 26px system-ui";
+    }
+    ctx.fillText(choice.source.clue, card.x + card.w / 2, card.y + (isFullscreenActive() ? card.h * 0.72 : compact ? 76 : 94));
   });
 }
 
+function getCryptogramCanvasStartButton(compact = false) {
+  if (isFullscreenActive() && isCanvasPortrait()) {
+    const w = Math.min(340, canvas.width - 96);
+    return { x: canvas.width / 2 - w / 2, y: getCryptogramMessageY() + 48, w, h: 74 };
+  }
+  if (isFullscreenActive()) {
+    const w = Math.min(280, canvas.width * 0.42);
+    return { x: canvas.width / 2 - w / 2, y: getCryptogramMessageY() + 34, w, h: 58 };
+  }
+  return compact
+    ? { x: canvas.width / 2 - 170, y: 570, w: 340, h: 72 }
+    : { x: canvas.width / 2 - 170, y: 480, w: 340, h: 72 };
+}
+
+function drawCryptogramStartPanel(compact = false) {
+  const button = getCryptogramCanvasStartButton(compact);
+  ctx.fillStyle = "#2f80ff";
+  roundRect(button.x, button.y, button.w, button.h, 16);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = isFullscreenActive() ? "900 28px system-ui" : compact ? "900 24px system-ui" : "900 28px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("スタート", button.x + button.w / 2, button.y + button.h / 2 + 1);
+}
+
+function getCryptogramPracticeButton(compact = false) {
+  const start = getCryptogramCanvasStartButton(compact);
+  const h = isFullscreenActive() ? Math.max(42, start.h - 20) : compact ? 52 : 54;
+  const w = Math.min(start.w * 0.62, isFullscreenActive() ? 220 : 210);
+  return {
+    x: canvas.width / 2 - w / 2,
+    y: start.y + start.h + (isFullscreenActive() ? 16 : 14),
+    w,
+    h,
+  };
+}
+
+function drawCryptogramPracticeButton(compact = false) {
+  const button = getCryptogramPracticeButton(compact);
+  ctx.fillStyle = "#dfe8fb";
+  roundRect(button.x, button.y, button.w, button.h, 14);
+  ctx.fill();
+  ctx.strokeStyle = "#9fb7ea";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#2f80ff";
+  ctx.font = isFullscreenActive() ? "900 22px system-ui" : compact ? "900 20px system-ui" : "900 22px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("練習", button.x + button.w / 2, button.y + button.h / 2 + 1);
+}
+
 function getCryptogramNextButton(compact = false) {
+  if (isFullscreenActive()) {
+    const insets = getFullscreenInsets();
+    const w = Math.min(320, canvas.width - 96);
+    const h = isCanvasPortrait() ? 72 : 48;
+    return {
+      x: canvas.width / 2 - w / 2,
+      y: Math.min(Math.round(canvas.height * (isCanvasPortrait() ? 0.55 : 0.7)), canvas.height - insets.bottom - h - 8),
+      w,
+      h,
+    };
+  }
   return compact
     ? { x: 190, y: 640, w: 340, h: 72 }
     : { x: canvas.width / 2 - 160, y: 500, w: 320, h: 72 };
@@ -1576,42 +2142,109 @@ function getCryptogramNextButton(compact = false) {
 
 function drawCryptogramCorrectPanel(compact = false) {
   const problemBox = getCryptogramProblemBox(compact);
+  const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
+  const titleY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 66 : 50) : compact ? 160 : 140);
+  const scoreY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 116 : 88) : compact ? 220 : 200);
+  const labelY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 154 : 116) : compact ? 268 : 246);
+  const textY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 188 : 138) : compact ? 310 : 288);
+  const translationY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 222 : 160) : compact ? 350 : 330);
+
   ctx.fillStyle = "#1fc7a6";
-  ctx.font = compact ? "900 42px system-ui" : "900 54px system-ui";
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 52 : 34}px system-ui` : compact ? "900 42px system-ui" : "900 54px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("正解!", canvas.width / 2, problemBox.y + (compact ? 160 : 140));
+  ctx.fillText("正解!", canvas.width / 2, titleY);
 
   ctx.fillStyle = "#172033";
-  ctx.font = compact ? "900 30px system-ui" : "900 38px system-ui";
-  ctx.fillText(`+${cryptogram.lastAward.toLocaleString("ja-JP")} 点`, canvas.width / 2, problemBox.y + (compact ? 220 : 200));
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 34 : 24}px system-ui` : compact ? "900 30px system-ui" : "900 38px system-ui";
+  ctx.fillText(`+${cryptogram.lastAward.toLocaleString("ja-JP")} 点`, canvas.width / 2, scoreY);
 
   ctx.fillStyle = "#64708a";
-  ctx.font = compact ? "800 17px system-ui" : "800 21px system-ui";
-  ctx.fillText("完成した文", canvas.width / 2, problemBox.y + (compact ? 268 : 246));
+  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 17px system-ui" : "800 21px system-ui";
+  ctx.fillText("完成した文", canvas.width / 2, labelY);
 
   ctx.fillStyle = "#172033";
-  ctx.font = compact ? "900 24px system-ui" : "900 30px system-ui";
-  ctx.fillText(cryptogram.solvedText || "", canvas.width / 2, problemBox.y + (compact ? 310 : 288));
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 24 : 18}px system-ui` : compact ? "900 24px system-ui" : "900 30px system-ui";
+  fitCanvasFont("900", fullscreen ? (fullscreenPortrait ? 24 : 18) : compact ? 24 : 30, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
+  ctx.fillText(cryptogram.solvedText || "", canvas.width / 2, textY);
 
   const translation = cryptogramTranslations[cryptogram.solvedText] || "";
   if (translation) {
     ctx.fillStyle = "#64708a";
-    ctx.font = compact ? "800 19px system-ui" : "800 24px system-ui";
-    ctx.fillText(translation, canvas.width / 2, problemBox.y + (compact ? 350 : 330));
+    ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 19px system-ui" : "800 24px system-ui";
+    fitCanvasFont("800", fullscreen ? (fullscreenPortrait ? 18 : 14) : compact ? 19 : 24, "system-ui", translation, problemBox.w - 48);
+    ctx.fillText(translation, canvas.width / 2, translationY);
   }
 
   ctx.fillStyle = "#a9b8d6";
-  ctx.font = compact ? "800 18px system-ui" : "800 22px system-ui";
-  ctx.fillText(`${cryptogram.solved}問 解読中 / 時間はそのまま進みます`, canvas.width / 2, compact ? 486 : 420);
+  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 22 : 15}px system-ui` : compact ? "800 18px system-ui" : "800 22px system-ui";
+  const statusY = fullscreen ? Math.min(getCryptogramNextButton(compact).y - 72, canvas.height - getFullscreenInsets().bottom - 140) : compact ? 486 : 420;
+  ctx.fillText(`${cryptogram.solved}問 解読中 / 時間はそのまま進みます`, canvas.width / 2, statusY);
 
   const button = getCryptogramNextButton(compact);
   ctx.fillStyle = "#2f80ff";
   roundRect(button.x, button.y, button.w, button.h, 16);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
-  ctx.font = compact ? "900 24px system-ui" : "900 28px system-ui";
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 28 : 20}px system-ui` : compact ? "900 24px system-ui" : "900 28px system-ui";
   ctx.fillText("次の問題へ", button.x + button.w / 2, button.y + button.h / 2 + 1);
+}
+
+function getCryptogramPracticeReturnButton(compact = false) {
+  if (isFullscreenActive()) {
+    const w = Math.min(300, canvas.width - 120);
+    const h = isCanvasPortrait() ? 70 : 48;
+    const y = Math.min(Math.round(canvas.height * (isCanvasPortrait() ? 0.58 : 0.72)), canvas.height - getFullscreenInsets().bottom - h - 8);
+    return { x: canvas.width / 2 - w / 2, y, w, h };
+  }
+  return compact
+    ? { x: canvas.width / 2 - 140, y: 640, w: 280, h: 68 }
+    : { x: canvas.width / 2 - 150, y: 500, w: 300, h: 68 };
+}
+
+function drawCryptogramPracticeResultPanel(compact = false) {
+  const problemBox = getCryptogramProblemBox(compact);
+  const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
+  const titleY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 72 : 54) : compact ? 150 : 136);
+  const labelY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 122 : 92) : compact ? 214 : 194);
+  const textY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 158 : 118) : compact ? 262 : 240);
+  const translationY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 194 : 144) : compact ? 308 : 288);
+  const noteY = fullscreen ? getCryptogramPracticeReturnButton(compact).y - (fullscreenPortrait ? 84 : 54) : compact ? 486 : 418;
+
+  ctx.fillStyle = "#1fc7a6";
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 48 : 32}px system-ui` : compact ? "900 40px system-ui" : "900 48px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("れんしゅう できた!", canvas.width / 2, titleY);
+
+  ctx.fillStyle = "#64708a";
+  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 17px system-ui" : "800 21px system-ui";
+  ctx.fillText("完成した文", canvas.width / 2, labelY);
+
+  ctx.fillStyle = "#172033";
+  fitCanvasFont("900", fullscreen ? (fullscreenPortrait ? 24 : 18) : compact ? 24 : 30, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
+  ctx.fillText(cryptogram.solvedText || "", canvas.width / 2, textY);
+
+  const translation = cryptogramTranslations[cryptogram.solvedText] || "";
+  if (translation) {
+    ctx.fillStyle = "#64708a";
+    fitCanvasFont("800", fullscreen ? (fullscreenPortrait ? 18 : 14) : compact ? 19 : 24, "system-ui", translation, problemBox.w - 48);
+    ctx.fillText(translation, canvas.width / 2, translationY);
+  }
+
+  ctx.fillStyle = "#a9b8d6";
+  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 22 : 15}px system-ui` : compact ? "800 18px system-ui" : "800 22px system-ui";
+  ctx.fillText("ルールがわかったら、スタートで本番へ", canvas.width / 2, noteY);
+
+  const button = getCryptogramPracticeReturnButton(compact);
+  ctx.fillStyle = "#2f80ff";
+  roundRect(button.x, button.y, button.w, button.h, 16);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 28 : 20}px system-ui` : compact ? "900 24px system-ui" : "900 26px system-ui";
+  ctx.fillText("もどる", button.x + button.w / 2, button.y + button.h / 2 + 1);
 }
 
 function getCryptogramKeys(compact = false) {
@@ -1625,11 +2258,43 @@ function getCryptogramKeys(compact = false) {
 
 function getEnglishKeyboardKeys(compact = false) {
   const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
   const rows = compact ? ["qwertyuiop", "asdfghjkl", "zxcvbnm", "←"] : ["qwertyuiop", "asdfghjkl", "zxcvbnm←"];
-  const keyW = fullscreen ? 72 : compact ? 56 : 88;
-  const keyH = fullscreen ? 42 : compact ? 48 : 50;
-  const gap = fullscreen ? 10 : compact ? 8 : 12;
-  const startY = fullscreen ? 456 : compact ? 520 : 440;
+  if (fullscreen) {
+    const area = getCryptogramKeyboardArea();
+    const maxColumns = Math.max(...rows.map((row) => [...row].length));
+    const gap = fullscreenPortrait ? 8 : 6;
+    const rowGap = fullscreenPortrait ? 9 : 5;
+    const keyW = Math.floor((area.w - (maxColumns - 1) * gap) / (maxColumns + 0.25));
+    const keyH = Math.max(fullscreenPortrait ? 22 : 12, Math.min(fullscreenPortrait ? 50 : 28, Math.floor((area.h - (rows.length - 1) * rowGap) / rows.length)));
+    const startY = area.y;
+
+    return rows.flatMap((row, rowIndex) => {
+      const chars = [...row];
+      const totalWidth = chars.reduce((sum, label) => sum + (label === "←" && !compact ? keyW * 1.25 : keyW), 0) + (chars.length - 1) * gap;
+      const startX = (canvas.width - totalWidth) / 2;
+      let x = startX;
+      return chars.map((label) => {
+        const width = label === "←" && !compact ? keyW * 1.25 : keyW;
+        const key = {
+          label,
+          value: label === "←" ? "backspace" : label,
+          x,
+          y: startY + rowIndex * (keyH + rowGap),
+          w: width,
+          h: keyH,
+        };
+        x += width + gap;
+        return key;
+      });
+    });
+  }
+
+  const shell = getCryptogramShell(compact);
+  const gap = compact ? 7 : 12;
+  const keyW = compact ? Math.floor((shell.w - 52 - 9 * gap) / 10) : 88;
+  const keyH = compact ? 48 : 50;
+  const startY = compact ? 520 : 440;
 
   return rows.flatMap((row, rowIndex) => {
     const chars = [...row];
@@ -1648,12 +2313,48 @@ function getEnglishKeyboardKeys(compact = false) {
 
 function getHiraganaKeyboardKeys(compact = false) {
   const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
   const columns = ["あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの", "はひふへほ", "まみむめも", "やゆよ", "らりるれろ", "わをん"];
-  const keyW = fullscreen ? 48 : compact ? 48 : 58;
-  const keyH = fullscreen ? 34 : compact ? 40 : 44;
-  const gap = fullscreen ? 7 : compact ? 7 : 9;
-  const columnGap = fullscreen ? 7 : compact ? 7 : 9;
-  const startY = fullscreen ? 432 : compact ? 520 : 420;
+  if (fullscreen) {
+    const area = getCryptogramKeyboardArea();
+    const gap = fullscreenPortrait ? 5 : 3;
+    const columnGap = fullscreenPortrait ? 5 : 5;
+    const keyW = Math.max(26, Math.min(fullscreenPortrait ? 52 : 44, Math.floor((area.w - (columns.length - 1) * columnGap) / columns.length)));
+    const keyH = Math.max(fullscreenPortrait ? 18 : 12, Math.min(fullscreenPortrait ? 42 : 24, Math.floor((area.h - 5 * gap) / 6)));
+    const totalWidth = columns.length * keyW + (columns.length - 1) * columnGap;
+    const left = (canvas.width - totalWidth) / 2;
+    const keys = [];
+
+    columns.forEach((column, columnIndex) => {
+      const x = left + (columns.length - 1 - columnIndex) * (keyW + columnGap);
+      [...column].forEach((label, rowIndex) => {
+        keys.push({
+          label,
+          value: label,
+          x,
+          y: area.y + rowIndex * (keyH + gap),
+          w: keyW,
+          h: keyH,
+        });
+      });
+    });
+
+    keys.push({
+      label: "←",
+      value: "backspace",
+      x: left,
+      y: area.y + 5 * (keyH + gap),
+      w: keyW * 2 + columnGap,
+      h: keyH,
+    });
+    return keys;
+  }
+
+  const keyW = compact ? 48 : 58;
+  const keyH = compact ? 40 : 44;
+  const gap = compact ? 7 : 9;
+  const columnGap = compact ? 7 : 9;
+  const startY = compact ? 520 : 420;
   const totalWidth = columns.length * keyW + (columns.length - 1) * columnGap;
   const left = (canvas.width - totalWidth) / 2;
 
@@ -1685,13 +2386,18 @@ function getHiraganaKeyboardKeys(compact = false) {
 
 function drawCryptogramKeyboard(compact = false) {
   const fullscreen = isFullscreenActive();
+  const fullscreenPortrait = fullscreen && isCanvasPortrait();
   getCryptogramKeys(compact).forEach((key) => {
     const isDelete = key.value === "backspace";
     ctx.fillStyle = isDelete ? "#2f80ff" : "#f6f8ff";
     roundRect(key.x, key.y, key.w, key.h, 10);
     ctx.fill();
     ctx.fillStyle = isDelete ? "#fff" : "#172033";
-    ctx.font = fullscreen ? "900 18px system-ui" : compact ? "900 19px system-ui" : "900 22px system-ui";
+    ctx.font = fullscreen
+      ? `900 ${Math.max(14, Math.min(fullscreenPortrait ? 22 : 16, key.h * 0.48))}px system-ui`
+      : compact
+        ? "900 19px system-ui"
+        : "900 22px system-ui";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(key.label, key.x + key.w / 2, key.y + key.h / 2 + 1);
@@ -1959,8 +2665,7 @@ function drawIdle() {
     return;
   }
   if (activeGameId === "cryptogram") {
-    prepareCryptogramChoices(true);
-    drawCryptogram();
+    returnToCryptogramStart();
     return;
   }
   drawBase();
@@ -2018,6 +2723,13 @@ canvas.addEventListener("click", (event) => {
   const compact = window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
 
   if (activeGameId === "cryptogram" && !cryptogram.puzzle) {
+    if (cryptogram.practiceComplete) {
+      const backButton = getCryptogramPracticeReturnButton(compact);
+      if (x >= backButton.x && x <= backButton.x + backButton.w && y >= backButton.y && y <= backButton.y + backButton.h) {
+        returnToCryptogramStart();
+      }
+      return;
+    }
     if (cryptogram.awaitingNext) {
       const nextButton = getCryptogramNextButton(compact);
       if (x >= nextButton.x && x <= nextButton.x + nextButton.w && y >= nextButton.y && y <= nextButton.y + nextButton.h) {
@@ -2026,6 +2738,19 @@ canvas.addEventListener("click", (event) => {
       }
       return;
     }
+    if (!isRunning && !cryptogram.choices.length) {
+      const start = getCryptogramCanvasStartButton(compact);
+      if (x >= start.x && x <= start.x + start.w && y >= start.y && y <= start.y + start.h) {
+        startGame();
+        return;
+      }
+      const practice = getCryptogramPracticeButton(compact);
+      if (x >= practice.x && x <= practice.x + practice.w && y >= practice.y && y <= practice.y + practice.h) {
+        startCryptogramPractice();
+      }
+      return;
+    }
+    if (!isRunning) return;
     const card = getCryptogramChoiceCards(compact).find(
       (item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h,
     );
@@ -2033,7 +2758,7 @@ canvas.addEventListener("click", (event) => {
     return;
   }
 
-  if (!isRunning) return;
+  if (!isRunning && !cryptogram.practiceMode) return;
 
   if (activeGameId === "cryptogram") {
     const key = getCryptogramKeys(compact).find(
@@ -2176,6 +2901,12 @@ gameCardGrid.addEventListener("click", (event) => {
     return;
   }
 
+  const playButton = event.target.closest("[data-play-game]");
+  if (playButton) {
+    location.hash = `#play/${playButton.dataset.playGame}`;
+    return;
+  }
+
   const card = event.target.closest("[data-open-game]");
   if (card) {
     location.hash = `#play/${card.dataset.openGame}`;
@@ -2185,7 +2916,7 @@ gameCardGrid.addEventListener("click", (event) => {
 gameCardGrid.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
   const card = event.target.closest("[data-open-game]");
-  if (!card || event.target.closest("[data-favorite]")) return;
+  if (!card || event.target.closest("[data-favorite]") || event.target.closest("[data-play-game]")) return;
   event.preventDefault();
   location.hash = `#play/${card.dataset.openGame}`;
 });

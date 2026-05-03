@@ -21,6 +21,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 92px;
 }
 
 body {
@@ -682,6 +683,24 @@ h3 {
   line-height: 1.65;
 }
 
+.game-rule-chip,
+.play-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.game-rule-chip {
+  margin: 0 0 10px;
+  background: #eef4ff;
+  color: var(--blue-dark);
+}
+
 .top-player {
   display: inline-flex;
   max-width: 100%;
@@ -691,6 +710,13 @@ h3 {
   color: var(--blue-dark);
   font-size: 0.9rem;
   font-weight: 900;
+}
+
+.play-chip {
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
 }
 
 .game-meta-row {
@@ -850,6 +876,7 @@ h3 {
   background: #000;
   box-shadow: none;
   overflow: hidden;
+  touch-action: none;
 }
 
 .game-shell:fullscreen .fullscreen-hud,
@@ -858,17 +885,18 @@ h3 {
   position: absolute;
   z-index: 3;
   gap: 8px;
+  max-width: calc(100vw - 24px);
 }
 
 .game-shell:fullscreen .fullscreen-hud span,
 .game-shell.is-fullscreen-preview .fullscreen-hud span {
   min-width: 104px;
-  padding: 7px 10px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
   background: rgba(238, 244, 255, 0.98);
   color: var(--blue-dark);
   text-align: center;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 900;
 }
 
@@ -885,9 +913,9 @@ h3 {
 
 .game-shell:fullscreen .game-frame,
 .game-shell.is-fullscreen-preview .game-frame {
-  width: min(calc(100vw - 24px), calc((100vh - 24px) * 16 / 9));
-  height: min(calc(100vh - 24px), calc((100vw - 24px) * 9 / 16));
-  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
 }
 
 .game-shell:fullscreen #gameCanvas,
@@ -901,18 +929,19 @@ h3 {
   z-index: 3;
   display: flex;
   gap: 8px;
+  max-width: calc(100vw - 24px);
 }
 
 .game-shell:fullscreen .primary-button,
 .game-shell:fullscreen .secondary-button,
 .game-shell.is-fullscreen-preview .primary-button,
 .game-shell.is-fullscreen-preview .secondary-button {
-  min-height: 36px;
-  padding-inline: 12px;
+  min-height: 44px;
+  padding-inline: 14px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(219, 227, 244, 0.9);
   box-shadow: none;
-  font-size: 0.84rem;
+  font-size: 0.9rem;
 }
 
 .game-shell:fullscreen .primary-button,
@@ -929,27 +958,42 @@ h3 {
 
 .game-shell:fullscreen .touch-move-button,
 .game-shell.is-fullscreen-preview .touch-move-button {
-  min-width: 60px;
-  min-height: 36px;
+  min-width: 86px;
+  min-height: 56px;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 1.35rem;
 }
 
 @media (orientation: portrait) {
   .game-shell:fullscreen .fullscreen-hud,
   .game-shell.is-fullscreen-preview .fullscreen-hud {
-    top: 12px;
-    left: 12px;
-    flex-direction: column;
-    align-items: stretch;
+    top: max(12px, env(safe-area-inset-top));
+    left: 50%;
+    justify-content: center;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
   }
 
   .game-shell:fullscreen .game-controls,
   .game-shell.is-fullscreen-preview .game-controls {
-    right: 12px;
-    bottom: 12px;
-    flex-direction: column;
-    align-items: stretch;
+    left: 50%;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    justify-content: center;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .game-shell:fullscreen .game-controls .primary-button,
+  .game-shell:fullscreen .game-controls .secondary-button,
+  .game-shell.is-fullscreen-preview .game-controls .primary-button,
+  .game-shell.is-fullscreen-preview .game-controls .secondary-button {
+    min-width: 88px;
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 0.82rem;
   }
 
   .game-shell:fullscreen .touch-controls,
@@ -968,16 +1012,18 @@ h3 {
 @media (orientation: landscape) {
   .game-shell:fullscreen .game-frame,
   .game-shell.is-fullscreen-preview .game-frame {
-    width: min(calc(100vw - 280px), calc((100vh - 24px) * 16 / 9));
-    height: min(calc(100vh - 24px), calc((100vw - 280px) * 9 / 16));
+    width: 100%;
+    height: 100%;
   }
 
   .game-shell:fullscreen .fullscreen-hud,
   .game-shell.is-fullscreen-preview .fullscreen-hud {
-    top: 16px;
-    left: 16px;
-    flex-direction: column;
-    align-items: stretch;
+    top: max(16px, env(safe-area-inset-top));
+    left: 50%;
+    justify-content: center;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
   }
 
   .game-shell:fullscreen .fullscreen-hud span,
@@ -987,23 +1033,25 @@ h3 {
 
   .game-shell:fullscreen .game-controls,
   .game-shell.is-fullscreen-preview .game-controls {
-    right: 16px;
-    bottom: 16px;
-    flex-direction: column;
-    align-items: stretch;
+    left: 50%;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    justify-content: center;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
   }
 
   .game-shell:fullscreen .game-controls .primary-button,
   .game-shell:fullscreen .game-controls .secondary-button,
   .game-shell.is-fullscreen-preview .game-controls .primary-button,
   .game-shell.is-fullscreen-preview .game-controls .secondary-button {
-    min-width: 116px;
+    min-width: 112px;
   }
 
   .game-shell:fullscreen .touch-controls,
   .game-shell.is-fullscreen-preview .touch-controls {
-    left: 16px;
-    bottom: 16px;
+    left: max(16px, env(safe-area-inset-left));
+    bottom: max(16px, env(safe-area-inset-bottom));
     flex-direction: column;
   }
 
@@ -1248,26 +1296,36 @@ h3 {
 }
 
 @media (max-width: 620px) {
+  html {
+    scroll-padding-top: 128px;
+  }
+
   .topbar {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 10px;
     width: 100%;
-    padding-inline: 16px;
+    padding: 10px 14px;
   }
 
   .brand {
     min-width: 0;
   }
 
+  .brand span:not(.brand-mark):not(.brand-version) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .brand-version {
-    padding-inline: 6px;
-    font-size: 0.68rem;
+    display: none;
   }
 
   .nav {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     order: initial;
     grid-column: 1 / -1;
     grid-row: 2;
@@ -1283,15 +1341,15 @@ h3 {
   }
 
   .player-panel {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: start;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
     min-width: auto;
     white-space: nowrap;
   }
 
   .ghost-button {
-    padding-inline: 6px;
+    padding: 8px 9px;
     font-size: 0.85rem;
   }
 
@@ -1334,7 +1392,9 @@ h3 {
   }
 
   .game-card-grid.is-grid .game-card p {
-    display: none;
+    display: block;
+    font-size: 0.78rem;
+    line-height: 1.45;
   }
 
   .game-card-grid.is-grid .label {
@@ -1347,6 +1407,7 @@ h3 {
   }
 
   .game-card-grid.is-grid .top-player,
+  .game-card-grid.is-grid .play-chip,
   .game-card-grid.is-grid .favorite-button {
     width: 100%;
     min-height: 32px;
@@ -1360,7 +1421,7 @@ h3 {
   }
 
   .game-page {
-    padding-top: 24px;
+    padding-top: 20px;
   }
 
   .game-page h2 {
@@ -1381,11 +1442,35 @@ h3 {
     aspect-ratio: 3 / 4;
   }
 
+  .game-shell {
+    padding: 12px;
+  }
+
+  .game-controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px -4px -4px;
+    padding: 8px 4px 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #fff 28%);
+  }
+
+  .game-controls .primary-button,
+  .game-controls .secondary-button {
+    width: 100%;
+    min-height: 46px;
+    padding-inline: 8px;
+    font-size: 0.92rem;
+  }
+
   .game-shell:fullscreen .game-frame,
   .game-shell.is-fullscreen-preview .game-frame {
-    width: min(calc(100vw - 24px), calc((100vh - 24px) * 16 / 9));
-    height: min(calc(100vh - 24px), calc((100vw - 24px) * 9 / 16));
-    aspect-ratio: 16 / 9;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
   }
 
   .game-stats {

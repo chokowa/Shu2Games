@@ -2,9 +2,9 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Gem Arcade</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260503-mobile-review-loop-4" />
   </head>
   <body>
     <header class="topbar">
@@ -18,7 +18,7 @@
         <a href="#scoreboard">ランキング</a>
       </nav>
       <div class="player-panel" id="playerPanel">
-        <button class="ghost-button" id="changePlayerButton" type="button">なまえ登録</button>
+        <button class="ghost-button" id="changePlayerButton" type="button">名前をつける</button>
       </div>
     </header>
 
@@ -29,10 +29,10 @@
           <h1>スコアを競って、<br />GEMを集める<br />ミニゲーム広場</h1>
           <p>
             かんたんなルールで遊べるミニゲームを集めました。
-            名前を登録すると、スコアとGEMをこの端末に保存できます。
+            名前はあとから登録できます。まずはゲストで、すぐに遊べます。
           </p>
           <div class="hero-actions">
-            <button class="primary-button" id="heroNameButton" type="button">なまえを登録</button>
+            <button class="primary-button" id="heroNameButton" type="button">名前をつける</button>
             <a class="secondary-button" href="#games">ゲームで遊ぶ</a>
           </div>
         </div>
@@ -55,7 +55,7 @@
         <div class="profile-summary">
           <div>
             <p class="label">プレイヤー</p>
-            <strong id="activePlayerName">未登録</strong>
+            <strong id="activePlayerName">ゲスト</strong>
           </div>
           <div>
             <p class="label">GEM</p>
@@ -101,7 +101,7 @@
           <div>
             <p class="label" id="gameGenre">反射神経ゲーム</p>
             <h2 id="gameTitle">Gem Pop</h2>
-            <p id="gameHint">落ちてくるGEMをクリックして集めよう。金色は高得点です。</p>
+            <p id="gameHint">落ちてくるGEMをタップして集めよう。金色は高得点です。</p>
           </div>
           <div class="game-stats">
             <span>Score <strong id="scoreValue">0</strong></span>
@@ -139,7 +139,7 @@
         <div class="section-heading">
           <p class="eyebrow">Scoreboard</p>
           <h2>ランキング</h2>
-          <p>ランキングはこの端末に保存されます。友達と同じ端末で遊ぶと、スコアを比べられます。</p>
+          <p>ランキングはこの端末に保存されます。名前をつけなくてもゲストで記録できます。</p>
         </div>
         <div class="score-grid">
           <article class="score-card">
@@ -182,7 +182,7 @@
         <div class="studio-grid">
           <article>
             <h3>Gem Pop</h3>
-            <p>ランダムな場所にGEMを出す、下へ動かす、クリックされたら点数を増やす、時間で終わる。</p>
+            <p>ランダムな場所にGEMを出す、下へ動かす、タップされたら点数を増やす、時間で終わる。</p>
           </article>
           <article>
             <h3>Code Runner</h3>
@@ -247,6 +247,6 @@
       </form>
     </dialog>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260503-mobile-review-loop-4"></script>
   </body>
 </html>

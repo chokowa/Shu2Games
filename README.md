@@ -19,12 +19,16 @@
 
 `index.html` をブラウザで開くと動きます。GitHub Pagesにもそのまま置けます。
 
+GitHub Pagesで公開すると、次のURLから遊べます。
+
+https://chokowa.github.io/Shu2Games/
+
 ## GitHub Pagesで公開する場合
 
-1. GitHubで新しいリポジトリを作る
-2. このフォルダの `index.html`, `styles.css`, `app.js`, `README.md` をアップロードする
-3. Settings > Pages > Build and deployment で `Deploy from a branch` を選ぶ
-4. `main` ブランチの `/root` を公開対象にする
+1. Settings > Pages を開く
+2. Build and deployment で `Deploy from a branch` を選ぶ
+3. Branch を `main`、フォルダを `/root` にする
+4. 保存後、数分待って公開URLを開く
 
 ## 共有ランキングの注意
 
