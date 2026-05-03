@@ -557,27 +557,27 @@ function isCanvasPortrait() {
 function getFullscreenInsets() {
   if (!isFullscreenActive()) return { top: 0, bottom: 0, side: 0 };
   return isCanvasPortrait()
-    ? { top: 74, bottom: 158, side: 18 }
-    : { top: 68, bottom: 60, side: 18 };
+    ? { top: 12, bottom: 12, side: 16 }
+    : { top: 10, bottom: 10, side: 14 };
 }
 
 function getCryptogramMessageY() {
   if (!isFullscreenActive()) return null;
   const problemBox = getCryptogramProblemBox(false);
   if (isCanvasPortrait()) return problemBox.y + problemBox.h + 60;
-  return problemBox.y + problemBox.h + 10;
+  return problemBox.y + problemBox.h + (canvas.height < 260 ? 6 : 10);
 }
 
 function getCryptogramKeyboardArea() {
   const insets = getFullscreenInsets();
   if (!isFullscreenActive()) return null;
   const messageY = getCryptogramMessageY();
-  const top = isCanvasPortrait() ? messageY + 36 : messageY + 10;
+  const top = isCanvasPortrait() ? messageY + 34 : messageY + (canvas.height < 260 ? 8 : 16);
   return {
     x: insets.side,
     y: top,
     w: canvas.width - insets.side * 2,
-    h: Math.max(76, canvas.height - top - insets.bottom),
+    h: Math.max(isCanvasPortrait() ? 154 : canvas.height < 260 ? 44 : 66, canvas.height - top - insets.bottom),
   };
 }
 
@@ -652,7 +652,10 @@ function setFullscreenPreview(enabled) {
 }
 
 function isPasscodeCompact() {
-  return activeGameId === "passcode-crack" && window.matchMedia("(max-width: 620px)").matches && !isFullscreenActive();
+  return (
+    activeGameId === "passcode-crack" &&
+    (window.matchMedia("(max-width: 620px)").matches || (isFullscreenActive() && canvas.width < 900))
+  );
 }
 
 function isCompactPuzzleGame() {
@@ -1659,18 +1662,26 @@ function getCryptogramProblemBox(compact = false) {
   if (isFullscreenActive()) {
     const insets = getFullscreenInsets();
     if (isCanvasPortrait()) {
+      const maxProblemHeight = Math.max(210, canvas.height - 360);
       return {
-        x: 28,
-        y: insets.top + 14,
-        w: canvas.width - 56,
-        h: Math.min(360, Math.round(canvas.height * 0.36)),
+        x: insets.side,
+        y: insets.top,
+        w: canvas.width - insets.side * 2,
+        h: Math.min(maxProblemHeight, Math.max(230, Math.round(canvas.height * 0.38))),
       };
     }
+    const shortLandscape = canvas.height < 260;
+    const reservedBelow = shortLandscape ? 76 : 126;
+    const minProblemHeight = shortLandscape ? 70 : 118;
+    const problemHeight = Math.min(
+      300,
+      Math.max(minProblemHeight, Math.min(Math.round(canvas.height * 0.42), canvas.height - reservedBelow)),
+    );
     return {
-      x: Math.max(28, Math.round(canvas.width * 0.05)),
-      y: insets.top + 6,
-      w: canvas.width - Math.max(56, Math.round(canvas.width * 0.1)),
-      h: Math.min(176, Math.round(canvas.height * 0.52)),
+      x: Math.max(insets.side, Math.round(canvas.width * 0.04)),
+      y: insets.top,
+      w: canvas.width - Math.max(insets.side * 2, Math.round(canvas.width * 0.08)),
+      h: problemHeight,
     };
   }
   return compact
@@ -2144,36 +2155,41 @@ function drawCryptogramCorrectPanel(compact = false) {
   const problemBox = getCryptogramProblemBox(compact);
   const fullscreen = isFullscreenActive();
   const fullscreenPortrait = fullscreen && isCanvasPortrait();
-  const titleY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 66 : 50) : compact ? 160 : 140);
-  const scoreY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 116 : 88) : compact ? 220 : 200);
-  const labelY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 154 : 116) : compact ? 268 : 246);
-  const textY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 188 : 138) : compact ? 310 : 288);
-  const translationY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 222 : 160) : compact ? 350 : 330);
+  const titleY = fullscreen ? problemBox.y + problemBox.h * 0.2 : problemBox.y + (compact ? 160 : 140);
+  const scoreY = fullscreen ? problemBox.y + problemBox.h * 0.4 : problemBox.y + (compact ? 220 : 200);
+  const labelY = fullscreen ? problemBox.y + problemBox.h * 0.58 : problemBox.y + (compact ? 268 : 246);
+  const textY = fullscreen ? problemBox.y + problemBox.h * 0.74 : problemBox.y + (compact ? 310 : 288);
+  const translationY = fullscreen ? problemBox.y + problemBox.h * 0.88 : problemBox.y + (compact ? 350 : 330);
+  const titleSize = fullscreen ? Math.max(22, Math.min(fullscreenPortrait ? 52 : 34, problemBox.h * 0.18)) : compact ? 42 : 54;
+  const scoreSize = fullscreen ? Math.max(16, Math.min(fullscreenPortrait ? 34 : 24, problemBox.h * 0.13)) : compact ? 30 : 38;
+  const labelSize = fullscreen ? Math.max(11, Math.min(fullscreenPortrait ? 18 : 14, problemBox.h * 0.08)) : compact ? 17 : 21;
+  const textSize = fullscreen ? Math.max(13, Math.min(fullscreenPortrait ? 24 : 18, problemBox.h * 0.1)) : compact ? 24 : 30;
 
   ctx.fillStyle = "#1fc7a6";
-  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 52 : 34}px system-ui` : compact ? "900 42px system-ui" : "900 54px system-ui";
+  ctx.font = `900 ${titleSize}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("正解!", canvas.width / 2, titleY);
 
   ctx.fillStyle = "#172033";
-  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 34 : 24}px system-ui` : compact ? "900 30px system-ui" : "900 38px system-ui";
+  ctx.font = `900 ${scoreSize}px system-ui`;
   ctx.fillText(`+${cryptogram.lastAward.toLocaleString("ja-JP")} 点`, canvas.width / 2, scoreY);
 
   ctx.fillStyle = "#64708a";
-  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 17px system-ui" : "800 21px system-ui";
+  ctx.font = `800 ${labelSize}px system-ui`;
   ctx.fillText("完成した文", canvas.width / 2, labelY);
 
   ctx.fillStyle = "#172033";
-  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 24 : 18}px system-ui` : compact ? "900 24px system-ui" : "900 30px system-ui";
-  fitCanvasFont("900", fullscreen ? (fullscreenPortrait ? 24 : 18) : compact ? 24 : 30, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
+  ctx.font = `900 ${textSize}px system-ui`;
+  fitCanvasFont("900", textSize, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
   ctx.fillText(cryptogram.solvedText || "", canvas.width / 2, textY);
 
   const translation = cryptogramTranslations[cryptogram.solvedText] || "";
   if (translation) {
     ctx.fillStyle = "#64708a";
-    ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 19px system-ui" : "800 24px system-ui";
-    fitCanvasFont("800", fullscreen ? (fullscreenPortrait ? 18 : 14) : compact ? 19 : 24, "system-ui", translation, problemBox.w - 48);
+    const translationSize = fullscreen ? Math.max(10, Math.min(fullscreenPortrait ? 18 : 14, problemBox.h * 0.075)) : compact ? 19 : 24;
+    ctx.font = `800 ${translationSize}px system-ui`;
+    fitCanvasFont("800", translationSize, "system-ui", translation, problemBox.w - 48);
     ctx.fillText(translation, canvas.width / 2, translationY);
   }
 
@@ -2207,30 +2223,34 @@ function drawCryptogramPracticeResultPanel(compact = false) {
   const problemBox = getCryptogramProblemBox(compact);
   const fullscreen = isFullscreenActive();
   const fullscreenPortrait = fullscreen && isCanvasPortrait();
-  const titleY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 72 : 54) : compact ? 150 : 136);
-  const labelY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 122 : 92) : compact ? 214 : 194);
-  const textY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 158 : 118) : compact ? 262 : 240);
-  const translationY = problemBox.y + (fullscreen ? (fullscreenPortrait ? 194 : 144) : compact ? 308 : 288);
+  const titleY = fullscreen ? problemBox.y + problemBox.h * 0.22 : problemBox.y + (compact ? 150 : 136);
+  const labelY = fullscreen ? problemBox.y + problemBox.h * 0.48 : problemBox.y + (compact ? 214 : 194);
+  const textY = fullscreen ? problemBox.y + problemBox.h * 0.66 : problemBox.y + (compact ? 262 : 240);
+  const translationY = fullscreen ? problemBox.y + problemBox.h * 0.84 : problemBox.y + (compact ? 308 : 288);
   const noteY = fullscreen ? getCryptogramPracticeReturnButton(compact).y - (fullscreenPortrait ? 84 : 54) : compact ? 486 : 418;
+  const titleSize = fullscreen ? Math.max(20, Math.min(fullscreenPortrait ? 48 : 32, problemBox.h * 0.17)) : compact ? 40 : 48;
+  const labelSize = fullscreen ? Math.max(11, Math.min(fullscreenPortrait ? 18 : 14, problemBox.h * 0.08)) : compact ? 17 : 21;
+  const textSize = fullscreen ? Math.max(13, Math.min(fullscreenPortrait ? 24 : 18, problemBox.h * 0.1)) : compact ? 24 : 30;
 
   ctx.fillStyle = "#1fc7a6";
-  ctx.font = fullscreen ? `900 ${fullscreenPortrait ? 48 : 32}px system-ui` : compact ? "900 40px system-ui" : "900 48px system-ui";
+  ctx.font = `900 ${titleSize}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("れんしゅう できた!", canvas.width / 2, titleY);
 
   ctx.fillStyle = "#64708a";
-  ctx.font = fullscreen ? `800 ${fullscreenPortrait ? 18 : 14}px system-ui` : compact ? "800 17px system-ui" : "800 21px system-ui";
+  ctx.font = `800 ${labelSize}px system-ui`;
   ctx.fillText("完成した文", canvas.width / 2, labelY);
 
   ctx.fillStyle = "#172033";
-  fitCanvasFont("900", fullscreen ? (fullscreenPortrait ? 24 : 18) : compact ? 24 : 30, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
+  fitCanvasFont("900", textSize, "system-ui", cryptogram.solvedText || "", problemBox.w - 48);
   ctx.fillText(cryptogram.solvedText || "", canvas.width / 2, textY);
 
   const translation = cryptogramTranslations[cryptogram.solvedText] || "";
   if (translation) {
     ctx.fillStyle = "#64708a";
-    fitCanvasFont("800", fullscreen ? (fullscreenPortrait ? 18 : 14) : compact ? 19 : 24, "system-ui", translation, problemBox.w - 48);
+    const translationSize = fullscreen ? Math.max(10, Math.min(fullscreenPortrait ? 18 : 14, problemBox.h * 0.075)) : compact ? 19 : 24;
+    fitCanvasFont("800", translationSize, "system-ui", translation, problemBox.w - 48);
     ctx.fillText(translation, canvas.width / 2, translationY);
   }
 
@@ -2410,6 +2430,12 @@ function drawPasscodeCrack() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#eaf3ff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const viewport = getPasscodeViewport(compact);
+  ctx.save();
+  ctx.translate(viewport.x, viewport.y);
+  ctx.scale(viewport.scale, viewport.scale);
+
   ctx.fillStyle = "#172033";
   roundRect(compact ? 30 : 72, compact ? 24 : 56, compact ? 660 : 1136, compact ? 672 : 608, 24);
   ctx.fill();
@@ -2428,6 +2454,28 @@ function drawPasscodeCrack() {
   drawInputSlots(compact);
   drawKeypad(compact);
   drawPasscodeHistory(compact);
+  ctx.restore();
+}
+
+function getPasscodeViewport(compact = false) {
+  const virtual = compact ? { w: 720, h: 720 } : { w: 1280, h: 720 };
+  const pad = isFullscreenActive() ? 8 : 0;
+  const scale = Math.min((canvas.width - pad * 2) / virtual.w, (canvas.height - pad * 2) / virtual.h);
+  const safeScale = Math.max(0.1, scale);
+  return {
+    ...virtual,
+    scale: safeScale,
+    x: (canvas.width - virtual.w * safeScale) / 2,
+    y: (canvas.height - virtual.h * safeScale) / 2,
+  };
+}
+
+function toPasscodeVirtualPoint(x, y, compact = false) {
+  const viewport = getPasscodeViewport(compact);
+  return {
+    x: (x - viewport.x) / viewport.scale,
+    y: (y - viewport.y) / viewport.scale,
+  };
 }
 
 function drawInputSlots(compact = false) {
@@ -2783,8 +2831,13 @@ canvas.addEventListener("click", (event) => {
   if (activeGameId === "passcode-crack") {
     configureCanvasSize();
     const compact = isPasscodeCompact();
+    const virtualPoint = toPasscodeVirtualPoint(x, y, compact);
     const button = getPasscodeButtons(compact).find(
-      (item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h,
+      (item) =>
+        virtualPoint.x >= item.x &&
+        virtualPoint.x <= item.x + item.w &&
+        virtualPoint.y >= item.y &&
+        virtualPoint.y <= item.y + item.h,
     );
     if (!button) return;
     const value = button.label === "DEL" ? "backspace" : button.label === "ENTER" ? "enter" : button.label;
